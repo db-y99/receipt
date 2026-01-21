@@ -17,6 +17,8 @@ const App: React.FC = () => {
   const [loadingStage, setLoadingStage] = useState<LoadingStage>('idle');
   const [scale, setScale] = useState(1);
   const [pdfFileName, setPdfFileName] = useState('');
+  const [isFileNameManuallyEdited, setIsFileNameManuallyEdited] = useState(false);
+  const fileNameInputRef = useRef<HTMLInputElement>(null);
   const previewContainerRef = useRef<HTMLDivElement>(null);
 
   // Calculate scale to fit A4 preview in the container
@@ -38,6 +40,21 @@ const App: React.FC = () => {
     window.addEventListener('resize', calculateScale);
     return () => window.removeEventListener('resize', calculateScale);
   }, []);
+
+  // Auto-update filename when customer name changes
+  useEffect(() => {
+    // Only auto-update if user hasn't manually edited AND input is not focused
+    const isInputFocused = document.activeElement === fileNameInputRef.current;
+    
+    if (!isFileNameManuallyEdited && !isInputFocused) {
+      if (customerData.fullName) {
+        const autoFileName = `PHIẾU THU TIỀN - ${customerData.fullName}`;
+        setPdfFileName(autoFileName);
+      } else {
+        setPdfFileName('');
+      }
+    }
+  }, [customerData.fullName, isFileNameManuallyEdited]);
 
   const handleDownloadPDF = async () => {
     const input = document.getElementById('print-area');
@@ -88,7 +105,9 @@ const App: React.FC = () => {
         pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
 
         // Use custom filename if provided, otherwise use default
-        const defaultFileName = `Phieu_Thu_${customerData.contractId || 'New'}.pdf`;
+        const defaultFileName = customerData.fullName 
+          ? `PHIẾU THU TIỀN - ${customerData.fullName}.pdf`
+          : 'PHIẾU THU TIỀN.pdf';
         const fileName = pdfFileName.trim() 
           ? `${pdfFileName.trim()}.pdf` 
           : defaultFileName;
@@ -182,12 +201,43 @@ const App: React.FC = () => {
                 Tên file:
               </label>
               <input
+                ref={fileNameInputRef}
                 id="pdf-filename"
                 type="text"
                 value={pdfFileName}
-                onChange={(e) => setPdfFileName(e.target.value)}
-                placeholder={`Phieu_Thu_${customerData.contractId || 'New'}`}
-                className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent w-48"
+                onChange={(e) => {
+                  const newValue = e.target.value;
+                  setPdfFileName(newValue);
+                  
+                  // Check if the new value matches the current auto-generated format
+                  const expectedAutoFileName = customerData.fullName 
+                    ? `PHIẾU THU TIỀN - ${customerData.fullName}`
+                    : '';
+                  
+                  // Mark as manually edited if it's different from auto format
+                  if (newValue !== expectedAutoFileName) {
+                    setIsFileNameManuallyEdited(true);
+                  } else {
+                    // If user types back to match auto format, reset flag to allow auto-update
+                    setIsFileNameManuallyEdited(false);
+                  }
+                }}
+                onBlur={() => {
+                  // When user leaves the input, check if it matches auto format
+                  const expectedAutoFileName = customerData.fullName 
+                    ? `PHIẾU THU TIỀN - ${customerData.fullName}`
+                    : '';
+                  
+                  if (pdfFileName === expectedAutoFileName || !pdfFileName.trim()) {
+                    setIsFileNameManuallyEdited(false);
+                    // Update to current format if empty
+                    if (!pdfFileName.trim() && customerData.fullName) {
+                      setPdfFileName(expectedAutoFileName);
+                    }
+                  }
+                }}
+                placeholder={customerData.fullName ? `PHIẾU THU TIỀN - ${customerData.fullName}` : 'PHIẾU THU TIỀN - TÊN KHÁCH HÀNG'}
+                className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent w-64"
                 disabled={isExporting}
               />
             </div>
