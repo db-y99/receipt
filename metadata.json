@@ -1,0 +1,5 @@
+{
+  "name": "Y99 Payment Slip Generator",
+  "description": "A professional tool to generate payment slips and debt reminders with automatic QR code generation and PDF export features, tailored for Doanh Nghiệp Tư Nhân Y99.",
+  "requestFramePermissions": []
+}
