@@ -140,7 +140,7 @@ export const SlipPreview: React.FC<SlipPreviewProps> = ({ customer, company, id 
         {/* Bottom Group: QR & Footer */}
         <div className={`relative z-10 ${isLongContent ? "mt-0.5" : (isSettlement ? "mt-1" : "mt-1")}`}>
              {/* QR Section */}
-            <p className={`text-center italic ${isLongContent ? "mb-1" : (isSettlement ? "mb-1.5" : "mb-2")} text-xs max-w-lg mx-auto leading-tight`}>
+            <p className={`text-center italic ${isLongContent ? "mb-1" : (isSettlement ? "mb-1.5" : "mb-2")} text-xs max-w-lg mx-auto leading-tight whitespace-nowrap`}>
                 Quý khách hàng khi chuyển khoản vui lòng quét mã QR bên dưới để hệ thống tự động điền thông tin chính xác!
             </p>
             {/* QR Code Container with blue border */}
