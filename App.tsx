@@ -3,11 +3,12 @@ import { DEFAULT_COMPANY_INFO, DEFAULT_CUSTOMER_DATA } from './constants';
 import { CustomerData } from './types';
 import { InputForm } from './components/InputForm';
 import { SlipPreview } from './components/SlipPreview';
-import { Printer, Download, ReceiptText, CheckCircle2 } from 'lucide-react'; // TODO: Note - CheckCircle2 để sau này xóa
+import { Printer, Download, CheckCircle2 } from 'lucide-react'; // TODO: Note - CheckCircle2 để sau này xóa
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 
 const loadingGif = new URL('./cat Mark loading.gif', import.meta.url).href;
+const logo = new URL('./logo.png', import.meta.url).href;
 
 type LoadingStage = 'idle' | 'spinning' | 'preparing' | 'aboutToExport' | 'success'; // TODO: Note - 'success' để sau này xóa
 
@@ -183,19 +184,17 @@ const App: React.FC = () => {
       )}
 
       {/* Header Bar */}
-      <header className="bg-white text-gray-900 p-4 shadow-sm border-b border-gray-200 sticky top-0 z-50 print:hidden">
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
-            <div className="bg-blue-600 p-2 rounded-lg text-white">
-                <ReceiptText className="w-6 h-6" />
-            </div>
+      <header className="bg-white text-gray-900 py-1 px-2 shadow-sm border-b border-gray-200 sticky top-0 z-50 print:hidden">
+        <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-1">
+          <div className="flex items-center gap-1.5">
+            <img src={logo} alt="Y99 Logo" className="w-16 h-16 object-contain" />
             <div>
                 <h1 className="text-xl font-bold">Y99 Generator</h1>
                 <p className="text-xs text-gray-500">Hệ thống tạo phiếu thu tự động</p>
             </div>
           </div>
           
-          <div className="flex items-center gap-3 flex-wrap">
+          <div className="flex items-center gap-2 flex-wrap">
             <div className="flex items-center gap-2">
               <label htmlFor="pdf-filename" className="text-sm text-gray-600 whitespace-nowrap">
                 Tên file:
