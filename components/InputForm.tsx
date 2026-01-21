@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { CustomerData, SlipType } from '../types';
 import { FileText, Calculator } from 'lucide-react';
 
@@ -8,6 +8,9 @@ interface InputFormProps {
 }
 
 export const InputForm: React.FC<InputFormProps> = ({ data, onChange }) => {
+  const addressTextareaRef = useRef<HTMLTextAreaElement>(null);
+  const transferContentTextareaRef = useRef<HTMLTextAreaElement>(null);
+
   const handleChange = (field: keyof CustomerData, value: string | number) => {
     onChange({ ...data, [field]: value });
   };
@@ -15,6 +18,27 @@ export const InputForm: React.FC<InputFormProps> = ({ data, onChange }) => {
   const handleTypeChange = (newType: SlipType) => {
     onChange({ ...data, type: newType });
   };
+
+  // Auto-resize textarea
+  const handleTextareaChange = (field: keyof CustomerData, value: string, e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    onChange({ ...data, [field]: value });
+    // Auto-resize textarea
+    e.target.style.height = 'auto';
+    e.target.style.height = `${e.target.scrollHeight}px`;
+  };
+
+  // Auto-resize textareas when data changes externally (e.g., QR scan)
+  useEffect(() => {
+    const resizeTextarea = (textarea: HTMLTextAreaElement | null) => {
+      if (textarea) {
+        textarea.style.height = 'auto';
+        textarea.style.height = `${textarea.scrollHeight}px`;
+      }
+    };
+
+    resizeTextarea(addressTextareaRef.current);
+    resizeTextarea(transferContentTextareaRef.current);
+  }, [data.address, data.transferContent]);
 
   // Auto-calculate total amount when in SETTLEMENT mode and breakdown fields change
   useEffect(() => {
@@ -58,12 +82,12 @@ export const InputForm: React.FC<InputFormProps> = ({ data, onChange }) => {
 
       <div>
         <h2 className="text-lg font-semibold text-gray-800 mb-4">Thông tin khách hàng</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 min-w-0">
           <div className="space-y-1">
             <label className="text-xs font-medium text-gray-700">Họ tên khách hàng</label>
             <input
               type="text"
-              className="w-full p-2 bg-white text-gray-900 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 outline-none placeholder-gray-400"
+              className="w-full p-2 bg-white text-gray-900 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 outline-none placeholder-gray-400 min-w-0"
               value={data.fullName}
               onChange={(e) => handleChange('fullName', e.target.value)}
             />
@@ -73,7 +97,7 @@ export const InputForm: React.FC<InputFormProps> = ({ data, onChange }) => {
             <label className="text-xs font-medium text-gray-700">Mã khách hàng</label>
             <input
               type="text"
-              className="w-full p-2 bg-white text-gray-900 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 outline-none placeholder-gray-400"
+              className="w-full p-2 bg-white text-gray-900 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 outline-none placeholder-gray-400 min-w-0"
               value={data.customerId}
               onChange={(e) => handleChange('customerId', e.target.value)}
             />
@@ -83,7 +107,7 @@ export const InputForm: React.FC<InputFormProps> = ({ data, onChange }) => {
             <label className="text-xs font-medium text-gray-700">Mã hợp đồng</label>
             <input
               type="text"
-              className="w-full p-2 bg-white text-gray-900 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 outline-none placeholder-gray-400"
+              className="w-full p-2 bg-white text-gray-900 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 outline-none placeholder-gray-400 min-w-0"
               value={data.contractId}
               onChange={(e) => handleChange('contractId', e.target.value)}
             />
@@ -147,11 +171,13 @@ export const InputForm: React.FC<InputFormProps> = ({ data, onChange }) => {
 
           <div className="space-y-1 md:col-span-2">
             <label className="text-xs font-medium text-gray-700">Địa chỉ</label>
-            <input
-              type="text"
-              className="w-full p-2 bg-white text-gray-900 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 outline-none placeholder-gray-400"
+            <textarea
+              ref={addressTextareaRef}
+              rows={2}
+              className="w-full p-2 bg-white text-gray-900 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 outline-none placeholder-gray-400 resize-y min-h-[42px]"
               value={data.address}
-              onChange={(e) => handleChange('address', e.target.value)}
+              onChange={(e) => handleTextareaChange('address', e.target.value, e)}
+              style={{ minHeight: '42px' }}
             />
           </div>
 
@@ -167,11 +193,13 @@ export const InputForm: React.FC<InputFormProps> = ({ data, onChange }) => {
 
           <div className="space-y-1 md:col-span-2">
             <label className="text-xs font-medium text-gray-700">Nội dung chuyển khoản</label>
-            <input
-              type="text"
-              className="w-full p-2 bg-white text-gray-900 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 outline-none placeholder-gray-400"
+            <textarea
+              ref={transferContentTextareaRef}
+              rows={3}
+              className="w-full p-2 bg-white text-gray-900 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 outline-none placeholder-gray-400 resize-y min-h-[42px] overflow-y-auto"
               value={data.transferContent}
-              onChange={(e) => handleChange('transferContent', e.target.value)}
+              onChange={(e) => handleTextareaChange('transferContent', e.target.value, e)}
+              style={{ minHeight: '42px' }}
             />
           </div>
         </div>
