@@ -1,11 +1,13 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { DEFAULT_COMPANY_INFO, DEFAULT_CUSTOMER_DATA } from './constants';
-import { CustomerData } from './types';
+import { CustomerData, UpgradePackage } from './types';
 import { InputForm } from './components/InputForm';
 import { SlipPreview } from './components/SlipPreview';
-import { Printer, Download, CheckCircle2 } from 'lucide-react'; // TODO: Note - CheckCircle2 để sau này xóa
+import { UpgradePackageSelector } from './components/UpgradePackage';
+import { Printer, Download, CheckCircle2, Zap } from 'lucide-react'; // TODO: Note - CheckCircle2 để sau này xóa
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
+import { getStoredPackage, getPackageInfo } from './upgradePackages';
 
 const loadingGif = new URL('./cat Mark loading.gif', import.meta.url).href;
 const logo = new URL('./logo.png', import.meta.url).href;
@@ -19,6 +21,8 @@ const App: React.FC = () => {
   const [scale, setScale] = useState(1);
   const [pdfFileName, setPdfFileName] = useState('');
   const [isFileNameManuallyEdited, setIsFileNameManuallyEdited] = useState(false);
+  const [currentPackage, setCurrentPackage] = useState<UpgradePackage>(getStoredPackage());
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const fileNameInputRef = useRef<HTMLInputElement>(null);
   const previewContainerRef = useRef<HTMLDivElement>(null);
 
@@ -65,19 +69,60 @@ const App: React.FC = () => {
     setLoadingStage('spinning');
 
     try {
-        // Stage 1: Spinning (đang quay) - 0-3 seconds
-        await new Promise(resolve => setTimeout(resolve, 3000));
+        const packageInfo = getPackageInfo(currentPackage);
+        const totalTime = packageInfo.exportTime;
+        const imageRenderTime = 500; // Time needed for images to render
+        
+        // Calculate stage timings based on package
+        // Total delay = stage1Time + stage2Time + stage3Time + imageRenderTime
+        // We want total delay to match packageInfo.exportTime
+        const availableDelayTime = Math.max(0, totalTime - imageRenderTime);
+        
+        let stage1Time = 0;
+        let stage2Time = 0;
+        let stage3Time = 0;
 
-        // Stage 2: Preparing (sắp xuất) - 3-7 seconds
-        setLoadingStage('preparing');
-        await new Promise(resolve => setTimeout(resolve, 4000));
+        if (totalTime >= 20000) {
+          // Free package: Full stages (30s total)
+          stage1Time = Math.floor(availableDelayTime * 0.3); // 30% - ~9s
+          stage2Time = Math.floor(availableDelayTime * 0.4); // 40% - ~12s
+          stage3Time = availableDelayTime - stage1Time - stage2Time; // 30% - ~9s
+        } else if (totalTime >= 8000) {
+          // Basic package: Reduced stages (10s total)
+          stage1Time = Math.floor(availableDelayTime * 0.35); // 35% - ~3.3s
+          stage2Time = Math.floor(availableDelayTime * 0.4); // 40% - ~3.8s
+          stage3Time = availableDelayTime - stage1Time - stage2Time; // 25% - ~2.4s
+        } else if (totalTime >= 3000) {
+          // Premium package: Quick stages (5s total)
+          stage1Time = Math.floor(availableDelayTime * 0.4); // 40% - ~1.8s
+          stage2Time = Math.floor(availableDelayTime * 0.35); // 35% - ~1.6s
+          stage3Time = availableDelayTime - stage1Time - stage2Time; // 25% - ~1.1s
+        } else {
+          // Pro package: Minimal delay (1s total)
+          stage1Time = Math.floor(availableDelayTime * 0.5); // 50% - ~0.25s
+          stage2Time = Math.floor(availableDelayTime * 0.3); // 30% - ~0.15s
+          stage3Time = availableDelayTime - stage1Time - stage2Time; // 20% - ~0.1s
+        }
 
-        // Stage 3: About to Export (sắp ra) - 7-10 seconds
-        setLoadingStage('aboutToExport');
-        await new Promise(resolve => setTimeout(resolve, 3000));
+        // Stage 1: Spinning (đang quay)
+        if (stage1Time > 0) {
+          await new Promise(resolve => setTimeout(resolve, stage1Time));
+        }
+
+        // Stage 2: Preparing (sắp xuất)
+        if (stage2Time > 0) {
+          setLoadingStage('preparing');
+          await new Promise(resolve => setTimeout(resolve, stage2Time));
+        }
+
+        // Stage 3: About to Export (sắp ra)
+        if (stage3Time > 0) {
+          setLoadingStage('aboutToExport');
+          await new Promise(resolve => setTimeout(resolve, stage3Time));
+        }
 
         // Wait for images to render
-        await new Promise(resolve => setTimeout(resolve, 500));
+        await new Promise(resolve => setTimeout(resolve, imageRenderTime));
 
         // When capturing, we want high resolution.
         // If the element is visually scaled down by CSS transform on parent, 
@@ -195,6 +240,26 @@ const App: React.FC = () => {
           </div>
           
           <div className="flex items-center gap-2 flex-wrap">
+            <button
+              onClick={() => setShowUpgradeModal(true)}
+              className={`
+                flex items-center gap-2 px-3 py-2 rounded-lg transition-colors text-sm font-medium border
+                ${currentPackage === 'FREE' 
+                  ? 'bg-yellow-50 border-yellow-300 text-yellow-700 hover:bg-yellow-100' 
+                  : currentPackage === 'BASIC'
+                  ? 'bg-blue-50 border-blue-300 text-blue-700 hover:bg-blue-100'
+                  : currentPackage === 'PREMIUM'
+                  ? 'bg-purple-50 border-purple-300 text-purple-700 hover:bg-purple-100'
+                  : 'bg-yellow-50 border-yellow-400 text-yellow-800 hover:bg-yellow-100'
+                }
+              `}
+              title={`Gói hiện tại: ${getPackageInfo(currentPackage).name}`}
+            >
+              <Zap className="w-4 h-4" />
+              <span className="hidden sm:inline">
+                {currentPackage === 'FREE' ? 'Nâng cấp' : getPackageInfo(currentPackage).name}
+              </span>
+            </button>
             <div className="flex items-center gap-2">
               <label htmlFor="pdf-filename" className="text-sm text-gray-600 whitespace-nowrap">
                 Tên file:
@@ -315,6 +380,17 @@ const App: React.FC = () => {
 
         </div>
       </main>
+
+      {/* Upgrade Package Modal */}
+      {showUpgradeModal && (
+        <UpgradePackageSelector
+          currentPackage={currentPackage}
+          onPackageChange={(pkg) => {
+            setCurrentPackage(pkg);
+          }}
+          onClose={() => setShowUpgradeModal(false)}
+        />
+      )}
     </div>
   );
 };

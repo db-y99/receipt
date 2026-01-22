@@ -27,3 +27,16 @@ export interface CompanyInfo {
   bankId: string; // e.g., 'VCB' for Vietcombank used in VietQR
   hotline: string;
 }
+
+export type UpgradePackage = 'FREE' | 'BASIC' | 'PREMIUM' | 'PRO';
+
+export interface PackageInfo {
+  id: UpgradePackage;
+  name: string;
+  description: string;
+  exportTime: number; // Total time in milliseconds
+  price: string;
+  features: string[];
+  color: string;
+  badge?: string;
+}
