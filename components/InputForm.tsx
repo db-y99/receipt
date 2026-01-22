@@ -28,26 +28,38 @@ export const InputForm: React.FC<InputFormProps> = ({ data, onChange }) => {
       .replace(/Đ/g, 'D');
   };
 
-  // Generate transfer content in format: Họ tên KH + Mã hđ + Gốc [số tiền] + Lãi [số tiền] + Phí QL [số tiền] + Phí phạt [số tiền] + Phí tất toán [số tiền]
+  // Generate transfer content in format: Họ tên KH Mã hđ G [số tiền] L [số tiền] PQL [số tiền] PP [số tiền] PTT [số tiền]
   // Limited to 95 characters for QR code compatibility
+  // Abbreviations: Gốc = G, Lãi = L, Phí QL = PQL, Phí phạt = PP, Phí tất toán = PTT
   const generateTransferContent = (): string => {
     const parts: string[] = [];
     
     if (data.fullName) parts.push(removeVietnameseAccents(data.fullName));
     if (data.contractId) parts.push(removeVietnameseAccents(data.contractId));
-    if (data.principal && data.principal > 0) parts.push(removeVietnameseAccents(`Gốc ${formatNumber(data.principal)}`));
-    if (data.interest && data.interest > 0) parts.push(removeVietnameseAccents(`Lãi ${formatNumber(data.interest)}`));
-    if (data.managementFee && data.managementFee > 0) parts.push(removeVietnameseAccents(`Phí QL ${formatNumber(data.managementFee)}`));
-    if (data.overdueFee && data.overdueFee > 0) parts.push(removeVietnameseAccents(`Phí phạt ${formatNumber(data.overdueFee)}`));
-    if (data.settlementFee && data.settlementFee > 0) parts.push(removeVietnameseAccents(`Phí tất toán ${formatNumber(data.settlementFee)}`));
+    if (data.principal && data.principal > 0) parts.push(removeVietnameseAccents(`G ${formatNumber(data.principal)}`));
+    if (data.interest && data.interest > 0) parts.push(removeVietnameseAccents(`L ${formatNumber(data.interest)}`));
+    if (data.managementFee && data.managementFee > 0) parts.push(removeVietnameseAccents(`PQL ${formatNumber(data.managementFee)}`));
+    if (data.overdueFee && data.overdueFee > 0) parts.push(removeVietnameseAccents(`PP ${formatNumber(data.overdueFee)}`));
+    if (data.settlementFee && data.settlementFee > 0) parts.push(removeVietnameseAccents(`PTT ${formatNumber(data.settlementFee)}`));
     
-    const content = parts.join(' + ');
+    const content = parts.join(' ');
     // Limit to 95 characters
     return content.length > 95 ? content.substring(0, 95) : content;
   };
 
   const handleChange = (field: keyof CustomerData, value: string | number) => {
-    onChange({ ...data, [field]: value });
+    const updatedData = { ...data, [field]: value };
+    
+    // Auto-calculate total immediately when any amount field changes
+    if (field === 'principal' || field === 'interest' || field === 'managementFee' || 
+        field === 'settlementFee' || field === 'overdueFee') {
+      const total = (updatedData.principal || 0) + (updatedData.interest || 0) + 
+                    (updatedData.managementFee || 0) + (updatedData.settlementFee || 0) + 
+                    (updatedData.overdueFee || 0);
+      updatedData.amount = total;
+    }
+    
+    onChange(updatedData);
   };
 
   const handleTypeChange = (newType: SlipType) => {
@@ -86,14 +98,15 @@ export const InputForm: React.FC<InputFormProps> = ({ data, onChange }) => {
     resizeTextarea(transferContentTextareaRef.current);
   }, [data.address, data.transferContent]);
 
-  // Auto-calculate total amount when breakdown fields change (for both STANDARD and SETTLEMENT)
+  // Auto-calculate total amount when breakdown fields change (backup calculation)
+  // Note: Main calculation is now in handleChange for immediate updates
   useEffect(() => {
     const total = (data.principal || 0) + (data.interest || 0) + (data.managementFee || 0) + (data.settlementFee || 0) + (data.overdueFee || 0);
-    // Only update if the total is actually different to avoid loops/re-renders if strict check was used elsewhere
+    // Only update if the total is actually different to avoid loops/re-renders
     if (total !== data.amount) {
       onChange({ ...data, amount: total });
     }
-  }, [data.principal, data.interest, data.managementFee, data.settlementFee, data.overdueFee, data.type]);
+  }, [data.principal, data.interest, data.managementFee, data.settlementFee, data.overdueFee]);
 
   // Auto-generate transfer content when relevant fields change
   useEffect(() => {
@@ -173,11 +186,10 @@ export const InputForm: React.FC<InputFormProps> = ({ data, onChange }) => {
                 Tổng tiền (Tự động tính)
             </label>
             <input
-              type="number"
+              type="text"
               className="w-full p-2 bg-white text-gray-900 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 outline-none placeholder-gray-400 bg-gray-50 font-bold text-blue-700"
-              value={data.amount}
+              value={formatNumber(data.amount)}
               readOnly={true}
-              onChange={(e) => handleChange('amount', parseInt(e.target.value) || 0)}
             />
           </div>
 
@@ -192,7 +204,10 @@ export const InputForm: React.FC<InputFormProps> = ({ data, onChange }) => {
                         type="number"
                         className="w-full p-2 bg-white border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 outline-none"
                         value={data.principal || ''}
-                        onChange={(e) => handleChange('principal', parseInt(e.target.value) || 0)}
+                        onChange={(e) => {
+                          const val = e.target.value === '' ? 0 : parseInt(e.target.value) || 0;
+                          handleChange('principal', val);
+                        }}
                     />
                 </div>
                 <div className="space-y-1">
@@ -201,7 +216,10 @@ export const InputForm: React.FC<InputFormProps> = ({ data, onChange }) => {
                         type="number"
                         className="w-full p-2 bg-white border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 outline-none"
                         value={data.interest || ''}
-                        onChange={(e) => handleChange('interest', parseInt(e.target.value) || 0)}
+                        onChange={(e) => {
+                          const val = e.target.value === '' ? 0 : parseInt(e.target.value) || 0;
+                          handleChange('interest', val);
+                        }}
                     />
                 </div>
                 <div className="space-y-1">
@@ -210,7 +228,10 @@ export const InputForm: React.FC<InputFormProps> = ({ data, onChange }) => {
                         type="number"
                         className="w-full p-2 bg-white border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 outline-none"
                         value={data.managementFee || ''}
-                        onChange={(e) => handleChange('managementFee', parseInt(e.target.value) || 0)}
+                        onChange={(e) => {
+                          const val = e.target.value === '' ? 0 : parseInt(e.target.value) || 0;
+                          handleChange('managementFee', val);
+                        }}
                     />
                 </div>
                 <div className="space-y-1">
@@ -219,16 +240,22 @@ export const InputForm: React.FC<InputFormProps> = ({ data, onChange }) => {
                         type="number"
                         className="w-full p-2 bg-white border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 outline-none"
                         value={data.settlementFee || ''}
-                        onChange={(e) => handleChange('settlementFee', parseInt(e.target.value) || 0)}
+                        onChange={(e) => {
+                          const val = e.target.value === '' ? 0 : parseInt(e.target.value) || 0;
+                          handleChange('settlementFee', val);
+                        }}
                     />
                 </div>
                 <div className="space-y-1">
-                    <label className="text-xs font-medium text-gray-700">Phí quá hạn</label>
+                    <label className="text-xs font-medium text-gray-700">Phí phạt quá hạn</label>
                     <input
                         type="number"
                         className="w-full p-2 bg-white border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 outline-none"
                         value={data.overdueFee || ''}
-                        onChange={(e) => handleChange('overdueFee', parseInt(e.target.value) || 0)}
+                        onChange={(e) => {
+                          const val = e.target.value === '' ? 0 : parseInt(e.target.value) || 0;
+                          handleChange('overdueFee', val);
+                        }}
                     />
                 </div>
             </div>
@@ -273,7 +300,7 @@ export const InputForm: React.FC<InputFormProps> = ({ data, onChange }) => {
                   }, 0);
                 }}
                 className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700 font-medium"
-                title="Tự động tạo lại nội dung theo định dạng: Họ tên + Mã HĐ + Gốc [số tiền] + Lãi [số tiền] + Phí QL [số tiền] + Phí phạt [số tiền] + Phí tất toán [số tiền]"
+                title="Tự động tạo lại nội dung theo định dạng: Họ tên Mã HĐ G [số tiền] L [số tiền] PQL [số tiền] PP [số tiền] PTT [số tiền] (G=Gốc, L=Lãi, PQL=Phí QL, PP=Phí phạt, PTT=Phí tất toán)"
               >
                 <RefreshCw className="w-3 h-3" />
                 Tự động tạo
@@ -289,12 +316,12 @@ export const InputForm: React.FC<InputFormProps> = ({ data, onChange }) => {
               className="w-full p-2 bg-white text-gray-900 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 outline-none placeholder-gray-400 resize-y min-h-[42px] overflow-y-auto"
               value={data.transferContent}
               onChange={(e) => handleTextareaChange('transferContent', e.target.value, e)}
-              placeholder="Họ tên KH + Mã HĐ + Gốc [số tiền] + Lãi [số tiền] + Phí QL [số tiền] + Phí phạt [số tiền] + Phí tất toán [số tiền] (Tự động tạo khi nhập thông tin)"
+              placeholder="Họ tên KH Mã HĐ G [số tiền] L [số tiền] PQL [số tiền] PP [số tiền] PTT [số tiền] (Tự động tạo khi nhập thông tin)"
               style={{ minHeight: '42px' }}
             />
             <div className="flex items-center justify-between">
               <p className="text-xs text-gray-500 italic">
-                Định dạng: Họ tên KH + Mã HĐ + Gốc [số tiền] + Lãi [số tiền] + Phí QL [số tiền] + Phí phạt [số tiền] + Phí tất toán [số tiền]
+                Định dạng: Họ tên KH Mã HĐ G [số tiền] L [số tiền] PQL [số tiền] PP [số tiền] PTT [số tiền] (G=Gốc, L=Lãi, PQL=Phí QL, PP=Phí phạt, PTT=Phí tất toán)
               </p>
             </div>
           </div>
