@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { CustomerData, CompanyInfo } from '../types';
 import logoImage from '../logo.png';
+import { generateVietQRString, removeVietnameseTones } from '../utils/vietqr';
 
 interface SlipPreviewProps {
   customer: CustomerData;
@@ -9,6 +10,8 @@ interface SlipPreviewProps {
 }
 
 export const SlipPreview: React.FC<SlipPreviewProps> = ({ customer, company, id }) => {
+  const qrRef = useRef<HTMLCanvasElement>(null);
+
   // Format Date
   const formatDate = (dateString: string) => {
     if (!dateString) return "...";
@@ -22,12 +25,78 @@ export const SlipPreview: React.FC<SlipPreviewProps> = ({ customer, company, id 
     return new Intl.NumberFormat('vi-VN').format(amount) + " " + suffix;
   };
 
-  // Generate VietQR Link
-  const qrUrl = `https://img.vietqr.io/image/${company.bankId}-${company.bankAccountNumber}-compact.png?amount=${customer.amount}&addInfo=${encodeURIComponent(customer.transferContent)}&accountName=${encodeURIComponent(company.bankAccountName)}`;
+  // Generate VietQR String
+  const qrString = generateVietQRString({
+    accountNo: company.bankAccountNumber,
+    amount: customer.amount > 0 ? customer.amount : undefined,
+    content: customer.transferContent || undefined,
+    bankId: company.bankId
+  });
+
+  // Load QRious library and render QR code
+  useEffect(() => {
+    if (!qrString || !qrRef.current) return;
+
+    const renderQR = (value: string) => {
+      if (!qrRef.current || !(window as any).QRious) return;
+      
+      // Clear previous QR code
+      const ctx = qrRef.current.getContext('2d');
+      if (ctx) {
+        ctx.clearRect(0, 0, qrRef.current.width, qrRef.current.height);
+      }
+
+      // @ts-ignore - QRious is loaded dynamically
+      new (window as any).QRious({
+        element: qrRef.current,
+        value: value,
+        size: 280,
+        level: 'M',
+        background: 'white',
+        foreground: 'black'
+      });
+    };
+
+    // Check if QRious is already loaded
+    if ((window as any).QRious) {
+      renderQR(qrString);
+      return;
+    }
+
+    // Check if script is already being loaded
+    const existingScript = document.querySelector('script[src*="qrious"]');
+    if (existingScript) {
+      // Script is loading, wait for it
+      existingScript.addEventListener('load', () => {
+        renderQR(qrString);
+      });
+      return;
+    }
+
+    // Load QRious from CDN
+    const script = document.createElement('script');
+    script.src = "https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js";
+    script.async = true;
+    script.onload = () => {
+      renderQR(qrString);
+    };
+    document.body.appendChild(script);
+
+    // Cleanup function
+    return () => {
+      const existingScript = document.querySelector('script[src*="qrious"]');
+      if (existingScript && existingScript.parentNode) {
+        existingScript.parentNode.removeChild(existingScript);
+      }
+    };
+  }, [qrString]);
 
   const isSettlement = customer.type === 'SETTLEMENT';
   // Check if transfer content is long (more than 50 characters)
   const isLongContent = customer.transferContent && customer.transferContent.length > 50;
+  
+  // Calculate clean content length for display
+  const cleanContentLength = customer.transferContent ? removeVietnameseTones(customer.transferContent).length : 0;
 
   return (
     // A4 Dimensions: 210mm x 297mm. 
@@ -157,8 +226,14 @@ export const SlipPreview: React.FC<SlipPreviewProps> = ({ customer, company, id 
             {/* QR Code Container with blue border */}
             <div className={`flex flex-col items-center mx-auto ${isLongContent ? "mb-1.5" : (isSettlement ? "mb-2" : "mb-3")}`}>
                 {/* QR Code with blue border */}
-                <div className="w-[280px] h-[280px] bg-white border-2 border-blue-500 shadow-sm overflow-hidden">
-                    <img src={qrUrl} alt="Mã QR Chuyển khoản" className="w-full h-full object-cover" crossOrigin="anonymous" />
+                <div className="w-[280px] h-[280px] bg-white border-2 border-blue-500 shadow-sm overflow-hidden flex items-center justify-center">
+                    {qrString ? (
+                        <canvas ref={qrRef} className="w-full h-full" />
+                    ) : (
+                        <div className="text-gray-400 text-sm text-center p-4">
+                            Chờ nhập thông tin...
+                        </div>
+                    )}
                 </div>
                 
                 {/* Payment Details below QR - Compact */}

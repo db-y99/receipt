@@ -29,6 +29,7 @@ export const InputForm: React.FC<InputFormProps> = ({ data, onChange }) => {
   };
 
   // Generate transfer content in format: Họ tên KH + Mã hđ + Gốc [số tiền] + Lãi [số tiền] + Phí QL [số tiền] + Phí phạt [số tiền] + Phí tất toán [số tiền]
+  // Limited to 95 characters for QR code compatibility
   const generateTransferContent = (): string => {
     const parts: string[] = [];
     
@@ -40,7 +41,9 @@ export const InputForm: React.FC<InputFormProps> = ({ data, onChange }) => {
     if (data.overdueFee && data.overdueFee > 0) parts.push(removeVietnameseAccents(`Phí phạt ${formatNumber(data.overdueFee)}`));
     if (data.settlementFee && data.settlementFee > 0) parts.push(removeVietnameseAccents(`Phí tất toán ${formatNumber(data.settlementFee)}`));
     
-    return parts.join(' + ');
+    const content = parts.join(' + ');
+    // Limit to 95 characters
+    return content.length > 95 ? content.substring(0, 95) : content;
   };
 
   const handleChange = (field: keyof CustomerData, value: string | number) => {
@@ -57,6 +60,10 @@ export const InputForm: React.FC<InputFormProps> = ({ data, onChange }) => {
     let processedValue = value;
     if (field === 'transferContent') {
       processedValue = removeVietnameseAccents(value);
+      // Limit to 95 characters
+      if (processedValue.length > 95) {
+        processedValue = processedValue.substring(0, 95);
+      }
       isTransferContentManuallyEdited.current = true;
     }
     
@@ -271,19 +278,25 @@ export const InputForm: React.FC<InputFormProps> = ({ data, onChange }) => {
                 <RefreshCw className="w-3 h-3" />
                 Tự động tạo
               </button>
+              <p className={`text-xs font-medium ${(data.transferContent?.length || 0) >= 95 ? 'text-red-600' : 'text-gray-600'}`}>
+                {data.transferContent ? data.transferContent.length : 0} / 95 ký tự
+              </p>
             </div>
             <textarea
               ref={transferContentTextareaRef}
               rows={3}
+              maxLength={95}
               className="w-full p-2 bg-white text-gray-900 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 outline-none placeholder-gray-400 resize-y min-h-[42px] overflow-y-auto"
               value={data.transferContent}
               onChange={(e) => handleTextareaChange('transferContent', e.target.value, e)}
               placeholder="Họ tên KH + Mã HĐ + Gốc [số tiền] + Lãi [số tiền] + Phí QL [số tiền] + Phí phạt [số tiền] + Phí tất toán [số tiền] (Tự động tạo khi nhập thông tin)"
               style={{ minHeight: '42px' }}
             />
-            <p className="text-xs text-gray-500 italic">
-              Định dạng: Họ tên KH + Mã HĐ + Gốc [số tiền] + Lãi [số tiền] + Phí QL [số tiền] + Phí phạt [số tiền] + Phí tất toán [số tiền]
-            </p>
+            <div className="flex items-center justify-between">
+              <p className="text-xs text-gray-500 italic">
+                Định dạng: Họ tên KH + Mã HĐ + Gốc [số tiền] + Lãi [số tiền] + Phí QL [số tiền] + Phí phạt [số tiền] + Phí tất toán [số tiền]
+              </p>
+            </div>
           </div>
         </div>
       </div>
