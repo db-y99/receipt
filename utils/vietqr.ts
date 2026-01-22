@@ -93,8 +93,8 @@ export const generateVietQRString = ({
     // Tag 62 chứa Tag 08. Tổng độ dài Tag 62 phải <= 99.
     // Tag 08 header tốn 4 ký tự ("08" + Length).
     // => Nội dung tối đa an toàn là 95 ký tự.
-    if (cleanContent.length > 95) {
-        cleanContent = cleanContent.substring(0, 95);
+    if (cleanContent.length > 999) {
+        cleanContent = cleanContent.substring(0, 99);
     }
     
     const referenceLabel = formatTLV("08", cleanContent);
