@@ -107,14 +107,25 @@ export const SlipPreview: React.FC<SlipPreviewProps> = ({ customer, company, id 
                         <span className="font-bold text-lg">{formatMoney(customer.amount)}</span>
                     </div>
                     
-                    {/* Breakdown for Settlement */}
-                    {isSettlement && (
+                    {/* Breakdown for both STANDARD and SETTLEMENT */}
+                    {((customer.principal || 0) > 0 || (customer.interest || 0) > 0 || (customer.managementFee || 0) > 0 || (customer.settlementFee || 0) > 0 || (customer.overdueFee || 0) > 0) && (
                         <div className={`ml-[200px] text-black ${isLongContent ? "mt-0.5" : "mt-1"} ${isLongContent ? "space-y-0" : "space-y-0.5"} text-base`}>
                             <div className={`grid grid-cols-2 gap-x-8 ${isLongContent ? "gap-y-0 leading-tight" : "gap-y-0.5"}`}>
-                                <p className={isLongContent ? "leading-tight" : ""}>- Gốc: {formatMoney(customer.principal || 0, 'VNĐ')}</p>
-                                <p className={isLongContent ? "leading-tight" : ""}>- Lãi: {formatMoney(customer.interest || 0, 'VNĐ')}</p>
-                                <p className={isLongContent ? "leading-tight" : ""}>- Phí QL: {formatMoney(customer.managementFee || 0, 'VNĐ')}</p>
-                                <p className={isLongContent ? "leading-tight" : ""}>- Phí tất toán: {formatMoney(customer.settlementFee || 0, 'VNĐ')}</p>
+                                {(customer.principal || 0) > 0 && (
+                                    <p className={isLongContent ? "leading-tight" : ""}>- Gốc: {formatMoney(customer.principal || 0, 'VNĐ')}</p>
+                                )}
+                                {(customer.interest || 0) > 0 && (
+                                    <p className={isLongContent ? "leading-tight" : ""}>- Lãi: {formatMoney(customer.interest || 0, 'VNĐ')}</p>
+                                )}
+                                {(customer.managementFee || 0) > 0 && (
+                                    <p className={isLongContent ? "leading-tight" : ""}>- Phí QL: {formatMoney(customer.managementFee || 0, 'VNĐ')}</p>
+                                )}
+                                {(customer.settlementFee || 0) > 0 && (
+                                    <p className={isLongContent ? "leading-tight" : ""}>- Phí tất toán: {formatMoney(customer.settlementFee || 0, 'VNĐ')}</p>
+                                )}
+                                {(customer.overdueFee || 0) > 0 && (
+                                    <p className={isLongContent ? "leading-tight" : ""}>- Phí quá hạn: {formatMoney(customer.overdueFee || 0, 'VNĐ')}</p>
+                                )}
                             </div>
                         </div>
                     )}

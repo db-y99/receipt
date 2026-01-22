@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { CustomerData, SlipType } from '../types';
-import { FileText, Calculator } from 'lucide-react';
+import { FileText, Calculator, RefreshCw } from 'lucide-react';
 
 interface InputFormProps {
   data: CustomerData;
@@ -10,6 +10,38 @@ interface InputFormProps {
 export const InputForm: React.FC<InputFormProps> = ({ data, onChange }) => {
   const addressTextareaRef = useRef<HTMLTextAreaElement>(null);
   const transferContentTextareaRef = useRef<HTMLTextAreaElement>(null);
+  const isTransferContentManuallyEdited = useRef(false);
+
+  // Format number with thousand separators
+  const formatNumber = (num: number): string => {
+    if (!num || num === 0) return '';
+    return new Intl.NumberFormat('vi-VN').format(num);
+  };
+
+  // Remove Vietnamese accents
+  const removeVietnameseAccents = (str: string): string => {
+    if (!str) return '';
+    return str
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '') // Remove diacritics
+      .replace(/đ/g, 'd')
+      .replace(/Đ/g, 'D');
+  };
+
+  // Generate transfer content in format: Họ tên KH + Mã hđ + Gốc [số tiền] + Lãi [số tiền] + Phí QL [số tiền] + Phí phạt [số tiền] + Phí tất toán [số tiền]
+  const generateTransferContent = (): string => {
+    const parts: string[] = [];
+    
+    if (data.fullName) parts.push(removeVietnameseAccents(data.fullName));
+    if (data.contractId) parts.push(removeVietnameseAccents(data.contractId));
+    if (data.principal && data.principal > 0) parts.push(removeVietnameseAccents(`Gốc ${formatNumber(data.principal)}`));
+    if (data.interest && data.interest > 0) parts.push(removeVietnameseAccents(`Lãi ${formatNumber(data.interest)}`));
+    if (data.managementFee && data.managementFee > 0) parts.push(removeVietnameseAccents(`Phí QL ${formatNumber(data.managementFee)}`));
+    if (data.overdueFee && data.overdueFee > 0) parts.push(removeVietnameseAccents(`Phí phạt ${formatNumber(data.overdueFee)}`));
+    if (data.settlementFee && data.settlementFee > 0) parts.push(removeVietnameseAccents(`Phí tất toán ${formatNumber(data.settlementFee)}`));
+    
+    return parts.join(' + ');
+  };
 
   const handleChange = (field: keyof CustomerData, value: string | number) => {
     onChange({ ...data, [field]: value });
@@ -21,7 +53,14 @@ export const InputForm: React.FC<InputFormProps> = ({ data, onChange }) => {
 
   // Auto-resize textarea
   const handleTextareaChange = (field: keyof CustomerData, value: string, e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    onChange({ ...data, [field]: value });
+    // Auto-remove accents for transferContent
+    let processedValue = value;
+    if (field === 'transferContent') {
+      processedValue = removeVietnameseAccents(value);
+      isTransferContentManuallyEdited.current = true;
+    }
+    
+    onChange({ ...data, [field]: processedValue });
     // Auto-resize textarea
     e.target.style.height = 'auto';
     e.target.style.height = `${e.target.scrollHeight}px`;
@@ -40,16 +79,25 @@ export const InputForm: React.FC<InputFormProps> = ({ data, onChange }) => {
     resizeTextarea(transferContentTextareaRef.current);
   }, [data.address, data.transferContent]);
 
-  // Auto-calculate total amount when in SETTLEMENT mode and breakdown fields change
+  // Auto-calculate total amount when breakdown fields change (for both STANDARD and SETTLEMENT)
   useEffect(() => {
-    if (data.type === 'SETTLEMENT') {
-      const total = (data.principal || 0) + (data.interest || 0) + (data.managementFee || 0) + (data.settlementFee || 0);
-      // Only update if the total is actually different to avoid loops/re-renders if strict check was used elsewhere
-      if (total !== data.amount) {
-        onChange({ ...data, amount: total });
+    const total = (data.principal || 0) + (data.interest || 0) + (data.managementFee || 0) + (data.settlementFee || 0) + (data.overdueFee || 0);
+    // Only update if the total is actually different to avoid loops/re-renders if strict check was used elsewhere
+    if (total !== data.amount) {
+      onChange({ ...data, amount: total });
+    }
+  }, [data.principal, data.interest, data.managementFee, data.settlementFee, data.overdueFee, data.type]);
+
+  // Auto-generate transfer content when relevant fields change
+  useEffect(() => {
+    // Only auto-generate if user hasn't manually edited
+    if (!isTransferContentManuallyEdited.current) {
+      const generatedContent = generateTransferContent();
+      if (generatedContent !== data.transferContent) {
+        onChange({ ...data, transferContent: generatedContent });
       }
     }
-  }, [data.principal, data.interest, data.managementFee, data.settlementFee, data.type]);
+  }, [data.fullName, data.contractId, data.principal, data.interest, data.managementFee, data.overdueFee, data.settlementFee]);
 
   return (
     <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
@@ -115,27 +163,28 @@ export const InputForm: React.FC<InputFormProps> = ({ data, onChange }) => {
 
            <div className="space-y-1">
             <label className="text-xs font-medium text-gray-700">
-                {data.type === 'SETTLEMENT' ? 'Tổng tiền (Tự động tính)' : 'Số tiền (VND)'}
+                Tổng tiền (Tự động tính)
             </label>
             <input
               type="number"
-              className={`w-full p-2 bg-white text-gray-900 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 outline-none placeholder-gray-400 ${data.type === 'SETTLEMENT' ? 'bg-gray-50 font-bold text-blue-700' : ''}`}
+              className="w-full p-2 bg-white text-gray-900 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 outline-none placeholder-gray-400 bg-gray-50 font-bold text-blue-700"
               value={data.amount}
-              readOnly={data.type === 'SETTLEMENT'}
+              readOnly={true}
               onChange={(e) => handleChange('amount', parseInt(e.target.value) || 0)}
             />
           </div>
 
-          {/* Breakdown Fields - Only for SETTLEMENT */}
-          {data.type === 'SETTLEMENT' && (
-            <div className="md:col-span-2 grid grid-cols-2 gap-4 bg-blue-50 p-4 rounded-lg border border-blue-100">
-                <div className="col-span-2 text-xs font-bold text-blue-800 uppercase tracking-wide">Chi tiết tất toán</div>
+          {/* Breakdown Fields - For both STANDARD and SETTLEMENT */}
+          <div className="md:col-span-2 grid grid-cols-2 gap-4 bg-blue-50 p-4 rounded-lg border border-blue-100">
+                <div className="col-span-2 text-xs font-bold text-blue-800 uppercase tracking-wide">
+                    {data.type === 'SETTLEMENT' ? 'Chi tiết tất toán' : 'Chi tiết thanh toán'}
+                </div>
                 <div className="space-y-1">
                     <label className="text-xs font-medium text-gray-700">Gốc</label>
                     <input
                         type="number"
                         className="w-full p-2 bg-white border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 outline-none"
-                        value={data.principal}
+                        value={data.principal || ''}
                         onChange={(e) => handleChange('principal', parseInt(e.target.value) || 0)}
                     />
                 </div>
@@ -144,7 +193,7 @@ export const InputForm: React.FC<InputFormProps> = ({ data, onChange }) => {
                     <input
                         type="number"
                         className="w-full p-2 bg-white border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 outline-none"
-                        value={data.interest}
+                        value={data.interest || ''}
                         onChange={(e) => handleChange('interest', parseInt(e.target.value) || 0)}
                     />
                 </div>
@@ -153,7 +202,7 @@ export const InputForm: React.FC<InputFormProps> = ({ data, onChange }) => {
                     <input
                         type="number"
                         className="w-full p-2 bg-white border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 outline-none"
-                        value={data.managementFee}
+                        value={data.managementFee || ''}
                         onChange={(e) => handleChange('managementFee', parseInt(e.target.value) || 0)}
                     />
                 </div>
@@ -162,12 +211,20 @@ export const InputForm: React.FC<InputFormProps> = ({ data, onChange }) => {
                     <input
                         type="number"
                         className="w-full p-2 bg-white border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 outline-none"
-                        value={data.settlementFee}
+                        value={data.settlementFee || ''}
                         onChange={(e) => handleChange('settlementFee', parseInt(e.target.value) || 0)}
                     />
                 </div>
+                <div className="space-y-1">
+                    <label className="text-xs font-medium text-gray-700">Phí quá hạn</label>
+                    <input
+                        type="number"
+                        className="w-full p-2 bg-white border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 outline-none"
+                        value={data.overdueFee || ''}
+                        onChange={(e) => handleChange('overdueFee', parseInt(e.target.value) || 0)}
+                    />
+                </div>
             </div>
-          )}
 
           <div className="space-y-1 md:col-span-2">
             <label className="text-xs font-medium text-gray-700">Địa chỉ</label>
@@ -192,15 +249,41 @@ export const InputForm: React.FC<InputFormProps> = ({ data, onChange }) => {
           </div>
 
           <div className="space-y-1 md:col-span-2">
-            <label className="text-xs font-medium text-gray-700">Nội dung chuyển khoản</label>
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-medium text-gray-700">Nội dung chuyển khoản</label>
+              <button
+                type="button"
+                onClick={() => {
+                  const generatedContent = generateTransferContent();
+                  onChange({ ...data, transferContent: generatedContent });
+                  isTransferContentManuallyEdited.current = false;
+                  // Auto-resize textarea after update
+                  setTimeout(() => {
+                    if (transferContentTextareaRef.current) {
+                      transferContentTextareaRef.current.style.height = 'auto';
+                      transferContentTextareaRef.current.style.height = `${transferContentTextareaRef.current.scrollHeight}px`;
+                    }
+                  }, 0);
+                }}
+                className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700 font-medium"
+                title="Tự động tạo lại nội dung theo định dạng: Họ tên + Mã HĐ + Gốc [số tiền] + Lãi [số tiền] + Phí QL [số tiền] + Phí phạt [số tiền] + Phí tất toán [số tiền]"
+              >
+                <RefreshCw className="w-3 h-3" />
+                Tự động tạo
+              </button>
+            </div>
             <textarea
               ref={transferContentTextareaRef}
               rows={3}
               className="w-full p-2 bg-white text-gray-900 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 outline-none placeholder-gray-400 resize-y min-h-[42px] overflow-y-auto"
               value={data.transferContent}
               onChange={(e) => handleTextareaChange('transferContent', e.target.value, e)}
+              placeholder="Họ tên KH + Mã HĐ + Gốc [số tiền] + Lãi [số tiền] + Phí QL [số tiền] + Phí phạt [số tiền] + Phí tất toán [số tiền] (Tự động tạo khi nhập thông tin)"
               style={{ minHeight: '42px' }}
             />
+            <p className="text-xs text-gray-500 italic">
+              Định dạng: Họ tên KH + Mã HĐ + Gốc [số tiền] + Lãi [số tiền] + Phí QL [số tiền] + Phí phạt [số tiền] + Phí tất toán [số tiền]
+            </p>
           </div>
         </div>
       </div>

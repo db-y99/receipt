@@ -15,6 +15,7 @@ export interface CustomerData {
   interest: number;        // Lãi
   managementFee: number;   // Phí QL
   settlementFee: number;   // Phí tất toán
+  overdueFee: number;      // Phí quá hạn
 }
 
 export interface CompanyInfo {
