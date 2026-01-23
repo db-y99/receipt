@@ -28,19 +28,20 @@ export const InputForm: React.FC<InputFormProps> = ({ data, onChange }) => {
       .replace(/Đ/g, 'D');
   };
 
-  // Generate transfer content in format: Họ tên KH Mã hđ Goc [số tiền] Lai [số tiền] PhiQL [số tiền] PhiPhat [số tiền] PhiTatToan [số tiền]
+  // Generate transfer content in format: Họ tên KH Mã hđ Goc [số tiền] Lai [số tiền] PhiQL [số tiền] Phi Phat [số tiền] PhiTatToan [số tiền]
   // Limited to 95 characters for QR code compatibility
-  // Abbreviations: Gốc = Goc, Lãi = Lai, Phí QL = PhiQL, Phí phạt = PhiPhat, Phí tất toán = PhiTatToan
+  // Abbreviations: Gốc = Goc, Lãi = Lai, Phí QL = PhiQL, Phí phạt = Phi Phat, Phí tất toán = PhiTatToan
+  // Note: Numbers in transfer content should NOT have thousand separators (dots)
   const generateTransferContent = (): string => {
     const parts: string[] = [];
     
     if (data.fullName) parts.push(removeVietnameseAccents(data.fullName));
     if (data.contractId) parts.push(removeVietnameseAccents(data.contractId));
-    if (data.principal && data.principal > 0) parts.push(removeVietnameseAccents(`Goc ${formatNumber(data.principal)}`));
-    if (data.interest && data.interest > 0) parts.push(removeVietnameseAccents(`Lai ${formatNumber(data.interest)}`));
-    if (data.managementFee && data.managementFee > 0) parts.push(removeVietnameseAccents(`PhiQL ${formatNumber(data.managementFee)}`));
-    if (data.overdueFee && data.overdueFee > 0) parts.push(removeVietnameseAccents(`PhiPhat ${formatNumber(data.overdueFee)}`));
-    if (data.settlementFee && data.settlementFee > 0) parts.push(removeVietnameseAccents(`PhiTatToan ${formatNumber(data.settlementFee)}`));
+    if (data.principal && data.principal > 0) parts.push(removeVietnameseAccents(`Goc ${data.principal}`));
+    if (data.interest && data.interest > 0) parts.push(removeVietnameseAccents(`Lai ${data.interest}`));
+    if (data.managementFee && data.managementFee > 0) parts.push(removeVietnameseAccents(`PhiQL ${data.managementFee}`));
+    if (data.overdueFee && data.overdueFee > 0) parts.push(removeVietnameseAccents(`Phi Phat ${data.overdueFee}`));
+    if (data.settlementFee && data.settlementFee > 0) parts.push(removeVietnameseAccents(`PhiTatToan ${data.settlementFee}`));
     
     const content = parts.join(' ');
     // Limit to 95 characters
@@ -300,7 +301,7 @@ export const InputForm: React.FC<InputFormProps> = ({ data, onChange }) => {
                   }, 0);
                 }}
                 className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700 font-medium"
-                title="Tự động tạo lại nội dung theo định dạng: Họ tên Mã HĐ Goc [số tiền] Lai [số tiền] PhiQL [số tiền] PhiPhat [số tiền] PhiTatToan [số tiền]"
+                title="Tự động tạo lại nội dung theo định dạng: Họ tên Mã HĐ Goc [số tiền] Lai [số tiền] PhiQL [số tiền] Phi Phat [số tiền] PhiTatToan [số tiền]"
               >
                 <RefreshCw className="w-3 h-3" />
                 Tự động tạo
@@ -316,12 +317,12 @@ export const InputForm: React.FC<InputFormProps> = ({ data, onChange }) => {
               className="w-full p-2 bg-white text-gray-900 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 outline-none placeholder-gray-400 resize-y min-h-[42px] overflow-y-auto"
               value={data.transferContent}
               onChange={(e) => handleTextareaChange('transferContent', e.target.value, e)}
-              placeholder="Họ tên KH Mã HĐ Goc [số tiền] Lai [số tiền] PhiQL [số tiền] PhiPhat [số tiền] PhiTatToan [số tiền] (Tự động tạo khi nhập thông tin)"
+              placeholder="Họ tên KH Mã HĐ Goc [số tiền] Lai [số tiền] PhiQL [số tiền] Phi Phat [số tiền] PhiTatToan [số tiền] (Tự động tạo khi nhập thông tin)"
               style={{ minHeight: '42px' }}
             />
             <div className="flex items-center justify-between">
               <p className="text-xs text-gray-500 italic">
-                Định dạng: Họ tên KH Mã HĐ Goc [số tiền] Lai [số tiền] PhiQL [số tiền] PhiPhat [số tiền] PhiTatToan [số tiền]
+                Định dạng: Họ tên KH Mã HĐ Goc [số tiền] Lai [số tiền] PhiQL [số tiền] Phi Phat [số tiền] PhiTatToan [số tiền]
               </p>
             </div>
           </div>
