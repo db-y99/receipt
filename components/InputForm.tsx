@@ -18,6 +18,41 @@ export const InputForm: React.FC<InputFormProps> = ({ data, onChange }) => {
     return new Intl.NumberFormat('vi-VN').format(num);
   };
 
+  // Parse number from input, handling thousand separators and decimals
+  // Removes commas and dots used as thousand separators
+  const parseNumberInput = (value: string): number => {
+    if (!value || value === '') return 0;
+    
+    // Remove all spaces
+    let cleaned = value.replace(/\s/g, '');
+    
+    // Handle Vietnamese format: dots are thousand separators
+    // Remove dots that are followed by exactly 3 digits (thousand separator)
+    // Keep dots that might be decimals (followed by 1-2 digits)
+    // But since we use parseInt, we'll remove all dots and commas
+    // For better UX, we'll detect if it's likely a decimal or thousand separator
+    
+    // Remove commas (always thousand separators in numbers)
+    cleaned = cleaned.replace(/,/g, '');
+    
+    // Remove dots - in Vietnamese format, dots are thousand separators
+    // But we need to be smart: if there's only one dot and it's followed by 1-2 digits, it might be a decimal
+    // However, since the fields use parseInt, we'll treat all dots as thousand separators
+    cleaned = cleaned.replace(/\./g, '');
+    
+    // Parse as integer (since the original code uses parseInt)
+    const parsed = parseInt(cleaned, 10);
+    return isNaN(parsed) ? 0 : parsed;
+  };
+
+  // Handle paste event for number inputs
+  const handleNumberPaste = (e: React.ClipboardEvent<HTMLInputElement>, field: keyof CustomerData) => {
+    e.preventDefault();
+    const pastedText = e.clipboardData.getData('text');
+    const cleanedValue = parseNumberInput(pastedText);
+    handleChange(field, cleanedValue);
+  };
+
   // Remove Vietnamese accents
   const removeVietnameseAccents = (str: string): string => {
     if (!str) return '';
@@ -206,9 +241,10 @@ export const InputForm: React.FC<InputFormProps> = ({ data, onChange }) => {
                         className="w-full p-2 bg-white border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 outline-none"
                         value={data.principal || ''}
                         onChange={(e) => {
-                          const val = e.target.value === '' ? 0 : parseInt(e.target.value) || 0;
+                          const val = parseNumberInput(e.target.value);
                           handleChange('principal', val);
                         }}
+                        onPaste={(e) => handleNumberPaste(e, 'principal')}
                     />
                 </div>
                 <div className="space-y-1">
@@ -218,9 +254,10 @@ export const InputForm: React.FC<InputFormProps> = ({ data, onChange }) => {
                         className="w-full p-2 bg-white border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 outline-none"
                         value={data.interest || ''}
                         onChange={(e) => {
-                          const val = e.target.value === '' ? 0 : parseInt(e.target.value) || 0;
+                          const val = parseNumberInput(e.target.value);
                           handleChange('interest', val);
                         }}
+                        onPaste={(e) => handleNumberPaste(e, 'interest')}
                     />
                 </div>
                 <div className="space-y-1">
@@ -230,9 +267,10 @@ export const InputForm: React.FC<InputFormProps> = ({ data, onChange }) => {
                         className="w-full p-2 bg-white border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 outline-none"
                         value={data.managementFee || ''}
                         onChange={(e) => {
-                          const val = e.target.value === '' ? 0 : parseInt(e.target.value) || 0;
+                          const val = parseNumberInput(e.target.value);
                           handleChange('managementFee', val);
                         }}
+                        onPaste={(e) => handleNumberPaste(e, 'managementFee')}
                     />
                 </div>
                 <div className="space-y-1">
@@ -242,9 +280,10 @@ export const InputForm: React.FC<InputFormProps> = ({ data, onChange }) => {
                         className="w-full p-2 bg-white border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 outline-none"
                         value={data.settlementFee || ''}
                         onChange={(e) => {
-                          const val = e.target.value === '' ? 0 : parseInt(e.target.value) || 0;
+                          const val = parseNumberInput(e.target.value);
                           handleChange('settlementFee', val);
                         }}
+                        onPaste={(e) => handleNumberPaste(e, 'settlementFee')}
                     />
                 </div>
                 <div className="space-y-1">
@@ -254,9 +293,10 @@ export const InputForm: React.FC<InputFormProps> = ({ data, onChange }) => {
                         className="w-full p-2 bg-white border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 outline-none"
                         value={data.overdueFee || ''}
                         onChange={(e) => {
-                          const val = e.target.value === '' ? 0 : parseInt(e.target.value) || 0;
+                          const val = parseNumberInput(e.target.value);
                           handleChange('overdueFee', val);
                         }}
+                        onPaste={(e) => handleNumberPaste(e, 'overdueFee')}
                     />
                 </div>
             </div>
