@@ -1,10 +1,10 @@
 import { CompanyInfo, CustomerData } from './types';
 
 export const DEFAULT_COMPANY_INFO: CompanyInfo = {
-  name: "CÔNG TY CỔ PHẦN CẦM ĐỒ Y99",
+  name: " DOANH NGHIỆP TƯ NHÂN Y99",
   address: "99B Nguyễn Trãi, phường Ninh Kiều, Cần Thơ",
   bankName: "Vietcombank",
-  bankAccountName: "CONG TY CO PHAN CAM DO Y99",
+  bankAccountName: "DOANH NGHIEP TU NHAN Y99",
   bankAccountNumber: "1058526128",
   bankId: "VCB",
   hotline: "1900575792 | +84 292 38 999 33 (Nước ngoài)"
