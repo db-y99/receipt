@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
-import { CustomerData, SlipType } from '../types';
-import { FileText, Calculator, RefreshCw } from 'lucide-react';
+import { CustomerData, SlipType, PeriodBreakdown } from '../types';
+import { FileText, Calculator, RefreshCw, Plus, Trash2 } from 'lucide-react';
 
 interface InputFormProps {
   data: CustomerData;
@@ -83,7 +83,7 @@ export const InputForm: React.FC<InputFormProps> = ({ data, onChange }) => {
     return content.length > 95 ? content.substring(0, 95) : content;
   };
 
-  const handleChange = (field: keyof CustomerData, value: string | number) => {
+  const handleChange = (field: keyof CustomerData, value: string | number | PeriodBreakdown[]) => {
     const updatedData = { ...data, [field]: value };
     
     // Auto-calculate total immediately when any amount field changes
@@ -96,6 +96,28 @@ export const InputForm: React.FC<InputFormProps> = ({ data, onChange }) => {
     }
     
     onChange(updatedData);
+  };
+
+  const handlePeriodChange = (index: number, field: keyof PeriodBreakdown, value: number) => {
+    const updatedPeriods = [...(data.periods || [])];
+    updatedPeriods[index] = { ...updatedPeriods[index], [field]: value };
+    handleChange('periods', updatedPeriods);
+  };
+
+  const handleAddPeriod = () => {
+    const newPeriod: PeriodBreakdown = {
+      periodNumber: 0, // Empty by default, user must input
+      daysOverdue: 0,
+      periodAmount: 0,
+      penaltyAmount: 0
+    };
+    handleChange('periods', [...(data.periods || []), newPeriod]);
+  };
+
+  const handleRemovePeriod = (index: number) => {
+    const updatedPeriods = [...(data.periods || [])];
+    updatedPeriods.splice(index, 1);
+    handleChange('periods', updatedPeriods);
   };
 
   const handleTypeChange = (newType: SlipType) => {
@@ -229,6 +251,18 @@ export const InputForm: React.FC<InputFormProps> = ({ data, onChange }) => {
             />
           </div>
 
+          <div className="space-y-1 md:col-span-2">
+            <label className="text-xs font-medium text-gray-700">Địa chỉ</label>
+            <textarea
+              ref={addressTextareaRef}
+              rows={2}
+              className="w-full p-2 bg-white text-gray-900 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 outline-none placeholder-gray-400 resize-y min-h-[42px]"
+              value={data.address}
+              onChange={(e) => handleTextareaChange('address', e.target.value, e)}
+              style={{ minHeight: '42px' }}
+            />
+          </div>
+
           {/* Breakdown Fields - For both STANDARD and SETTLEMENT */}
           <div className="md:col-span-2 grid grid-cols-2 gap-4 bg-blue-50 p-4 rounded-lg border border-blue-100">
                 <div className="col-span-2 text-xs font-bold text-blue-800 uppercase tracking-wide">
@@ -301,15 +335,139 @@ export const InputForm: React.FC<InputFormProps> = ({ data, onChange }) => {
                 </div>
             </div>
 
-          <div className="space-y-1 md:col-span-2">
-            <label className="text-xs font-medium text-gray-700">Địa chỉ</label>
-            <textarea
-              ref={addressTextareaRef}
-              rows={2}
-              className="w-full p-2 bg-white text-gray-900 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 outline-none placeholder-gray-400 resize-y min-h-[42px]"
-              value={data.address}
-              onChange={(e) => handleTextareaChange('address', e.target.value, e)}
-              style={{ minHeight: '42px' }}
+          {/* Period Breakdown Section */}
+          <div className="md:col-span-2 bg-green-50 p-4 rounded-lg border border-green-100">
+            <div className="flex items-center justify-between mb-3">
+              <div className="text-xs font-bold text-green-800 uppercase tracking-wide">
+                Chi tiết các kỳ thanh toán
+              </div>
+              <button
+                type="button"
+                onClick={handleAddPeriod}
+                className="flex items-center gap-1 px-2 py-1 text-xs bg-green-600 hover:bg-green-700 text-white rounded transition-colors"
+              >
+                <Plus className="w-3 h-3" />
+                Thêm kỳ
+              </button>
+            </div>
+            
+            {data.periods && data.periods.length > 0 ? (
+              <div className="space-y-3">
+                {data.periods.map((period, index) => (
+                  <div key={index} className="bg-white p-3 rounded border border-green-200">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs font-bold text-green-700">Kỳ {period.periodNumber || '...'}</span>
+                      <button
+                        type="button"
+                        onClick={() => handleRemovePeriod(index)}
+                        className="text-red-600 hover:text-red-700 p-1"
+                        title="Xóa kỳ này"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="space-y-1">
+                        <label className="text-xs font-medium text-gray-700">Số kỳ</label>
+                        <input
+                          type="number"
+                          className="w-full p-2 bg-white border border-gray-300 rounded focus:ring-2 focus:ring-green-500 outline-none text-sm"
+                          value={period.periodNumber || ''}
+                          onChange={(e) => {
+                            const val = parseNumberInput(e.target.value);
+                            handlePeriodChange(index, 'periodNumber', val);
+                          }}
+                          onPaste={(e) => {
+                            e.preventDefault();
+                            const pastedText = e.clipboardData.getData('text');
+                            const cleanedValue = parseNumberInput(pastedText);
+                            handlePeriodChange(index, 'periodNumber', cleanedValue);
+                          }}
+                          placeholder="VD: 2, 3, 4..."
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-xs font-medium text-gray-700">Số ngày trễ</label>
+                        <input
+                          type="number"
+                          className="w-full p-2 bg-white border border-gray-300 rounded focus:ring-2 focus:ring-green-500 outline-none text-sm"
+                          value={period.daysOverdue || ''}
+                          onChange={(e) => {
+                            const val = parseNumberInput(e.target.value);
+                            handlePeriodChange(index, 'daysOverdue', val);
+                          }}
+                          onPaste={(e) => {
+                            e.preventDefault();
+                            const pastedText = e.clipboardData.getData('text');
+                            const cleanedValue = parseNumberInput(pastedText);
+                            handlePeriodChange(index, 'daysOverdue', cleanedValue);
+                          }}
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-xs font-medium text-gray-700">Số tiền kỳ</label>
+                        <input
+                          type="number"
+                          className="w-full p-2 bg-white border border-gray-300 rounded focus:ring-2 focus:ring-green-500 outline-none text-sm"
+                          value={period.periodAmount || ''}
+                          onChange={(e) => {
+                            const val = parseNumberInput(e.target.value);
+                            handlePeriodChange(index, 'periodAmount', val);
+                          }}
+                          onPaste={(e) => {
+                            e.preventDefault();
+                            const pastedText = e.clipboardData.getData('text');
+                            const cleanedValue = parseNumberInput(pastedText);
+                            handlePeriodChange(index, 'periodAmount', cleanedValue);
+                          }}
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-xs font-medium text-gray-700">Số tiền phạt</label>
+                        <input
+                          type="number"
+                          className="w-full p-2 bg-white border border-gray-300 rounded focus:ring-2 focus:ring-green-500 outline-none text-sm"
+                          value={period.penaltyAmount || ''}
+                          onChange={(e) => {
+                            const val = parseNumberInput(e.target.value);
+                            handlePeriodChange(index, 'penaltyAmount', val);
+                          }}
+                          onPaste={(e) => {
+                            e.preventDefault();
+                            const pastedText = e.clipboardData.getData('text');
+                            const cleanedValue = parseNumberInput(pastedText);
+                            handlePeriodChange(index, 'penaltyAmount', cleanedValue);
+                          }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-xs text-gray-500 italic text-center py-2">
+                Chưa có kỳ nào. Nhấn "Thêm kỳ" để thêm chi tiết các kỳ thanh toán.
+              </p>
+            )}
+          </div>
+
+          {/* Remaining Principal */}
+          <div className="space-y-1">
+            <label className="text-xs font-medium text-gray-700">Gốc còn lại</label>
+            <input
+              type="number"
+              className="w-full p-2 bg-white text-gray-900 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 outline-none placeholder-gray-400"
+              value={data.remainingPrincipal || ''}
+              onChange={(e) => {
+                const val = parseNumberInput(e.target.value);
+                handleChange('remainingPrincipal', val);
+              }}
+              onPaste={(e) => {
+                e.preventDefault();
+                const pastedText = e.clipboardData.getData('text');
+                const cleanedValue = parseNumberInput(pastedText);
+                handleChange('remainingPrincipal', cleanedValue);
+              }}
             />
           </div>
 

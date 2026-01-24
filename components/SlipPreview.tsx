@@ -22,7 +22,13 @@ export const SlipPreview: React.FC<SlipPreviewProps> = ({ customer, company, id 
 
   // Format Money
   const formatMoney = (amount: number, suffix: string = "VND") => {
-    return new Intl.NumberFormat('vi-VN').format(amount) + " " + suffix;
+    const formatted = new Intl.NumberFormat('vi-VN').format(amount);
+    return suffix ? formatted + " " + suffix : formatted;
+  };
+  
+  // Format number without suffix (for periods)
+  const formatNumber = (amount: number) => {
+    return new Intl.NumberFormat('vi-VN').format(amount);
   };
 
   // Generate VietQR String
@@ -171,24 +177,43 @@ export const SlipPreview: React.FC<SlipPreviewProps> = ({ customer, company, id 
                         <span className="font-bold text-lg break-words flex-1">{formatMoney(customer.amount)}</span>
                     </div>
                     
-                    {/* Breakdown for both STANDARD and SETTLEMENT */}
-                    {((customer.principal || 0) > 0 || (customer.interest || 0) > 0 || (customer.managementFee || 0) > 0 || (customer.settlementFee || 0) > 0 || (customer.overdueFee || 0) > 0) && (
-                        <div className="ml-[180px] text-black mt-1 space-y-0.5 text-base">
-                            <div className="grid grid-cols-2 gap-x-6 gap-y-0.5">
-                                {(customer.principal || 0) > 0 && (
-                                    <p className="leading-tight break-words">- Gốc: {formatMoney(customer.principal || 0, 'VNĐ')}</p>
+                    {/* All breakdown items in a compact 3-column layout */}
+                    {(((customer.principal || 0) > 0 || (customer.interest || 0) > 0 || (customer.managementFee || 0) > 0 || (customer.settlementFee || 0) > 0 || (customer.overdueFee || 0) > 0) || 
+                       (customer.periods && customer.periods.length > 0) || 
+                       (customer.remainingPrincipal || 0) > 0) && (
+                        <div className="mt-1 text-black space-y-0.5 text-sm w-full">
+                            <div className="grid grid-cols-3 gap-x-4 gap-y-0.5">
+                                {/* Breakdown items - Only show if NO periods */}
+                                {!(customer.periods && customer.periods.length > 0) && (
+                                    <>
+                                        {(customer.principal || 0) > 0 && (
+                                            <p className="leading-tight break-words">- Gốc: {formatMoney(customer.principal || 0, 'VNĐ')}</p>
+                                        )}
+                                        {(customer.interest || 0) > 0 && (
+                                            <p className="leading-tight break-words">- Lãi: {formatMoney(customer.interest || 0, 'VNĐ')}</p>
+                                        )}
+                                        {(customer.managementFee || 0) > 0 && (
+                                            <p className="leading-tight break-words">- Phí QL: {formatMoney(customer.managementFee || 0, 'VNĐ')}</p>
+                                        )}
+                                        {(customer.settlementFee || 0) > 0 && (
+                                            <p className="leading-tight break-words">- Phí tất toán: {formatMoney(customer.settlementFee || 0, 'VNĐ')}</p>
+                                        )}
+                                        {(customer.overdueFee || 0) > 0 && (
+                                            <p className="leading-tight break-words">- Phí quá hạn: {formatMoney(customer.overdueFee || 0, 'VNĐ')}</p>
+                                        )}
+                                    </>
                                 )}
-                                {(customer.interest || 0) > 0 && (
-                                    <p className="leading-tight break-words">- Lãi: {formatMoney(customer.interest || 0, 'VNĐ')}</p>
-                                )}
-                                {(customer.managementFee || 0) > 0 && (
-                                    <p className="leading-tight break-words">- Phí QL: {formatMoney(customer.managementFee || 0, 'VNĐ')}</p>
-                                )}
-                                {(customer.settlementFee || 0) > 0 && (
-                                    <p className="leading-tight break-words">- Phí tất toán: {formatMoney(customer.settlementFee || 0, 'VNĐ')}</p>
-                                )}
-                                {(customer.overdueFee || 0) > 0 && (
-                                    <p className="leading-tight break-words">- Phí quá hạn: {formatMoney(customer.overdueFee || 0, 'VNĐ')}</p>
+                                
+                                {/* Period Breakdown - can span multiple columns if needed */}
+                                {customer.periods && customer.periods.map((period, index) => (
+                                    <p key={index} className="leading-tight break-words col-span-3">
+                                        - Kỳ {period.periodNumber} (trễ {period.daysOverdue} ngày): {formatNumber(period.periodAmount)}; phạt {period.daysOverdue} ngày: {formatNumber(period.penaltyAmount)}
+                                    </p>
+                                ))}
+                                
+                                {/* Remaining Principal */}
+                                {(customer.remainingPrincipal || 0) > 0 && (
+                                    <p className="leading-tight break-words col-span-3">- Gốc còn lại: {formatNumber(customer.remainingPrincipal || 0)}</p>
                                 )}
                             </div>
                         </div>

@@ -1,5 +1,12 @@
 export type SlipType = 'STANDARD' | 'SETTLEMENT';
 
+export interface PeriodBreakdown {
+  periodNumber: number;    // Số kỳ (Kỳ 2, Kỳ 3, ...)
+  daysOverdue: number;    // Số ngày trễ
+  periodAmount: number;    // Số tiền kỳ
+  penaltyAmount: number;   // Số tiền phạt
+}
+
 export interface CustomerData {
   type: SlipType;
   fullName: string;
@@ -16,6 +23,10 @@ export interface CustomerData {
   managementFee: number;   // Phí QL
   settlementFee: number;   // Phí tất toán
   overdueFee: number;      // Phí quá hạn
+  
+  // Period breakdown fields
+  periods: PeriodBreakdown[];  // Chi tiết các kỳ
+  remainingPrincipal: number;  // Gốc còn lại
 }
 
 export interface CompanyInfo {

@@ -25,5 +25,9 @@ export const DEFAULT_CUSTOMER_DATA: CustomerData = {
   interest: 0,
   managementFee: 0,
   settlementFee: 0,
-  overdueFee: 0
+  overdueFee: 0,
+  
+  // Default empty for period breakdown
+  periods: [],
+  remainingPrincipal: 0
 };
