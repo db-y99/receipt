@@ -1,7 +1,7 @@
 import { CompanyInfo, CustomerData } from './types';
 
 export const DEFAULT_COMPANY_INFO: CompanyInfo = {
-  name: " DOANH NGHIỆP TƯ NHÂN Y99",
+  name: " CÔNG TY CỔ PHẦN CẦM ĐỒ Y99",
   address: "99B Nguyễn Trãi, phường Ninh Kiều, Cần Thơ",
   bankName: "Vietcombank",
   bankAccountName: "DOANH NGHIEP TU NHAN Y99",
