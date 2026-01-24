@@ -50,7 +50,7 @@ export const SlipPreview: React.FC<SlipPreviewProps> = ({ customer, company, id 
       new (window as any).QRious({
         element: qrRef.current,
         value: value,
-        size: 280,
+        size: 200,
         level: 'M',
         background: 'white',
         foreground: 'black'
@@ -92,11 +92,6 @@ export const SlipPreview: React.FC<SlipPreviewProps> = ({ customer, company, id 
   }, [qrString]);
 
   const isSettlement = customer.type === 'SETTLEMENT';
-  // Check if transfer content is long (more than 50 characters)
-  const isLongContent = customer.transferContent && customer.transferContent.length > 50;
-  
-  // Calculate clean content length for display
-  const cleanContentLength = customer.transferContent ? removeVietnameseTones(customer.transferContent).length : 0;
 
   return (
     // A4 Dimensions: 210mm x 297mm. 
@@ -131,69 +126,69 @@ export const SlipPreview: React.FC<SlipPreviewProps> = ({ customer, company, id 
         <img 
             src={logoImage} 
             alt="Y99 Logo" 
-            className="absolute top-0 right-0 w-24 h-auto object-contain z-10"
-            style={{ top: '74px', right: '20mm', left: '622px' }}
+            className="absolute top-0 right-0 w-20 h-auto object-contain z-10"
+            style={{ top: '20mm', right: '20mm' }}
         />
 
         {/* Top Content Group */}
-        <div className="relative z-10">
+        <div className="relative z-10 flex-1 flex flex-col">
             {/* Header */}
-            <div className={isLongContent ? "mb-1.5" : (isSettlement ? "mb-2" : "mb-3")}>
-                <h1 className={`font-bold uppercase text-lg leading-tight ${isLongContent ? "mb-0.5" : "mb-0.5"}`}>{company.name}</h1>
-                <p className={`italic text-gray-700 text-sm ${isLongContent ? "leading-tight" : ""}`}>{company.address}</p>
+            <div className="mb-4">
+                <h1 className="font-bold uppercase text-lg leading-tight mb-1">{company.name}</h1>
+                <p className="italic text-gray-700 text-sm leading-tight break-words">{company.address}</p>
             </div>
 
             {/* Title */}
-            <div className={`text-center ${isLongContent ? "mb-1.5" : (isSettlement ? "mb-2" : "mb-3")}`}>
-                <h2 className={`font-bold text-2xl uppercase tracking-wide ${isLongContent ? "mb-0.5 leading-tight" : "mb-1"}`}>
+            <div className="text-center mb-4">
+                <h2 className="font-bold text-2xl uppercase tracking-wide mb-1 leading-tight">
                     {isSettlement ? 'PHIẾU THU TIỀN TẤT TOÁN' : 'PHIẾU THU TIỀN'}
                 </h2>
-                <p className={`italic font-medium text-base ${isLongContent ? "leading-tight" : ""}`}>Thời hạn: {formatDate(customer.deadline)}.</p>
+                <p className="italic font-medium text-base leading-tight">Thời hạn: {formatDate(customer.deadline)}.</p>
             </div>
 
             {/* Body Info */}
-            <div className={`${isLongContent ? (isSettlement ? "space-y-0.5 mb-1.5" : "space-y-1 mb-2") : (isSettlement ? "space-y-1 mb-2" : "space-y-1.5 mb-3")} text-base`}>
-                <div className={`flex items-baseline ${isLongContent ? "leading-tight" : ""}`}>
-                    <span className="font-bold w-[200px] shrink-0">Họ tên khách hàng:</span>
-                    <span className="font-medium">{customer.fullName}</span>
+            <div className="space-y-2 mb-4 text-base">
+                <div className="flex items-start leading-tight">
+                    <span className="font-bold w-[180px] shrink-0">Họ tên khách hàng:</span>
+                    <span className="font-medium break-words flex-1">{customer.fullName}</span>
                 </div>
-                <div className={`flex items-baseline ${isLongContent ? "leading-tight" : ""}`}>
-                    <span className="font-bold w-[200px] shrink-0">Mã khách hàng:</span>
-                    <span className="font-medium">{customer.customerId}</span>
+                <div className="flex items-start leading-tight">
+                    <span className="font-bold w-[180px] shrink-0">Mã khách hàng:</span>
+                    <span className="font-medium break-words flex-1">{customer.customerId}</span>
                 </div>
-                <div className={`flex items-baseline ${isLongContent ? "leading-tight" : ""}`}>
-                    <span className="font-bold w-[200px] shrink-0">Mã số hợp đồng:</span>
-                    <span className="font-medium">{customer.contractId}</span>
+                <div className="flex items-start leading-tight">
+                    <span className="font-bold w-[180px] shrink-0">Mã số hợp đồng:</span>
+                    <span className="font-medium break-words flex-1">{customer.contractId}</span>
                 </div>
-                <div className={`flex items-baseline ${isLongContent ? "leading-tight" : ""}`}>
-                    <span className="font-bold w-[200px] shrink-0">Địa chỉ:</span>
-                    <span className="font-medium">{customer.address}</span>
+                <div className="flex items-start leading-tight">
+                    <span className="font-bold w-[180px] shrink-0">Địa chỉ:</span>
+                    <span className="font-medium break-words flex-1">{customer.address}</span>
                 </div>
                 
-                <div className={`flex flex-col ${isLongContent ? "mt-1" : "mt-2"}`}>
-                    <div className={`flex items-baseline text-red-700 ${isLongContent ? "leading-tight" : ""}`}>
-                        <span className="font-bold w-[200px] shrink-0 text-black">Tổng tiền thanh toán:</span>
-                        <span className="font-bold text-lg">{formatMoney(customer.amount)}</span>
+                <div className="flex flex-col mt-2">
+                    <div className="flex items-baseline text-red-700 leading-tight">
+                        <span className="font-bold w-[180px] shrink-0 text-black">Tổng tiền thanh toán:</span>
+                        <span className="font-bold text-lg break-words flex-1">{formatMoney(customer.amount)}</span>
                     </div>
                     
                     {/* Breakdown for both STANDARD and SETTLEMENT */}
                     {((customer.principal || 0) > 0 || (customer.interest || 0) > 0 || (customer.managementFee || 0) > 0 || (customer.settlementFee || 0) > 0 || (customer.overdueFee || 0) > 0) && (
-                        <div className={`ml-[200px] text-black ${isLongContent ? "mt-0.5" : "mt-1"} ${isLongContent ? "space-y-0" : "space-y-0.5"} text-base`}>
-                            <div className={`grid grid-cols-2 gap-x-8 ${isLongContent ? "gap-y-0 leading-tight" : "gap-y-0.5"}`}>
+                        <div className="ml-[180px] text-black mt-1 space-y-0.5 text-base">
+                            <div className="grid grid-cols-2 gap-x-6 gap-y-0.5">
                                 {(customer.principal || 0) > 0 && (
-                                    <p className={isLongContent ? "leading-tight" : ""}>- Gốc: {formatMoney(customer.principal || 0, 'VNĐ')}</p>
+                                    <p className="leading-tight break-words">- Gốc: {formatMoney(customer.principal || 0, 'VNĐ')}</p>
                                 )}
                                 {(customer.interest || 0) > 0 && (
-                                    <p className={isLongContent ? "leading-tight" : ""}>- Lãi: {formatMoney(customer.interest || 0, 'VNĐ')}</p>
+                                    <p className="leading-tight break-words">- Lãi: {formatMoney(customer.interest || 0, 'VNĐ')}</p>
                                 )}
                                 {(customer.managementFee || 0) > 0 && (
-                                    <p className={isLongContent ? "leading-tight" : ""}>- Phí QL: {formatMoney(customer.managementFee || 0, 'VNĐ')}</p>
+                                    <p className="leading-tight break-words">- Phí QL: {formatMoney(customer.managementFee || 0, 'VNĐ')}</p>
                                 )}
                                 {(customer.settlementFee || 0) > 0 && (
-                                    <p className={isLongContent ? "leading-tight" : ""}>- Phí tất toán: {formatMoney(customer.settlementFee || 0, 'VNĐ')}</p>
+                                    <p className="leading-tight break-words">- Phí tất toán: {formatMoney(customer.settlementFee || 0, 'VNĐ')}</p>
                                 )}
                                 {(customer.overdueFee || 0) > 0 && (
-                                    <p className={isLongContent ? "leading-tight" : ""}>- Phí quá hạn: {formatMoney(customer.overdueFee || 0, 'VNĐ')}</p>
+                                    <p className="leading-tight break-words">- Phí quá hạn: {formatMoney(customer.overdueFee || 0, 'VNĐ')}</p>
                                 )}
                             </div>
                         </div>
@@ -202,31 +197,31 @@ export const SlipPreview: React.FC<SlipPreviewProps> = ({ customer, company, id 
             </div>
 
             {/* Bank Info Box */}
-            <div className={`border-2 border-black ${isLongContent ? "p-1.5" : "p-3"} ${isLongContent ? (isSettlement ? "mb-1" : "mb-1") : (isSettlement ? "mb-1.5" : "mb-2")} text-sm`}>
-                <p className={`font-bold underline ${isLongContent ? "mb-1 leading-tight" : "mb-2"}`}>Nộp tiền vào tài khoản sau:</p>
-                <div className={`grid grid-cols-1 ${isLongContent ? "gap-0.5" : "gap-1"}`}>
-                    <p className={isLongContent ? "leading-tight" : ""}><span className="font-bold w-[160px] inline-block">Tên ngân hàng:</span> {company.bankName}</p>
-                    <p className={isLongContent ? "leading-tight" : ""}><span className="font-bold w-[160px] inline-block">Tên chủ tài khoản:</span> {company.bankAccountName}</p>
-                    <p className={isLongContent ? "leading-tight" : ""}><span className="font-bold w-[160px] inline-block">Số tài khoản:</span> {company.bankAccountNumber}</p>
+            <div className="border-2 border-black p-2.5 mb-4 text-sm">
+                <p className="font-bold underline mb-2 leading-tight">Nộp tiền vào tài khoản sau:</p>
+                <div className="grid grid-cols-1 gap-1">
+                    <p className="leading-tight break-words"><span className="font-bold w-[140px] inline-block">Tên ngân hàng:</span> {company.bankName}</p>
+                    <p className="leading-tight break-words"><span className="font-bold w-[140px] inline-block">Tên chủ tài khoản:</span> {company.bankAccountName}</p>
+                    <p className="leading-tight break-words"><span className="font-bold w-[140px] inline-block">Số tài khoản:</span> {company.bankAccountNumber}</p>
                     {/* Force Transfer Content to be visible clearly */}
-                    <div className={`${isLongContent ? "mt-0.5 pt-0.5" : "mt-1 pt-1"} border-t border-gray-300 border-dashed`}>
-                         <span className={`font-bold text-red-600 ${isLongContent ? "leading-tight" : ""}`}>Nội dung chuyển khoản (Bắt buộc):</span> 
-                         <span className={`font-bold ml-2 text-lg ${isLongContent ? "leading-tight break-words" : ""}`} style={isLongContent ? { lineHeight: '1.2' } : {}}>{customer.transferContent}</span>
+                    <div className="mt-1 pt-1 border-t border-gray-300 border-dashed">
+                         <span className="font-bold text-red-600 leading-tight">Nội dung chuyển khoản (Bắt buộc):</span> 
+                         <span className="font-bold ml-2 text-lg leading-tight break-words" style={{ lineHeight: '1.3' }}>{customer.transferContent}</span>
                     </div>
                 </div>
             </div>
         </div>
 
         {/* Bottom Group: QR & Footer */}
-        <div className={`relative z-10 ${isLongContent ? "mt-0.5" : (isSettlement ? "mt-1" : "mt-1")}`}>
+        <div className="relative z-10 mt-auto">
              {/* QR Section */}
-            <p className={`text-center italic ${isLongContent ? "mb-1" : (isSettlement ? "mb-1.5" : "mb-2")} text-xs max-w-lg mx-auto leading-tight whitespace-nowrap`}>
+            <p className="text-center italic mb-2 text-sm max-w-lg mx-auto leading-tight break-words">
                 Quý khách hàng khi chuyển khoản vui lòng quét mã QR bên dưới để hệ thống tự động điền thông tin chính xác!
             </p>
             {/* QR Code Container with blue border */}
-            <div className={`flex flex-col items-center mx-auto ${isLongContent ? "mb-1.5" : (isSettlement ? "mb-2" : "mb-3")}`}>
+            <div className="flex flex-col items-center mx-auto mb-3">
                 {/* QR Code with blue border */}
-                <div className="w-[280px] h-[280px] bg-white border-2 border-blue-500 shadow-sm overflow-hidden flex items-center justify-center">
+                <div className="w-[200px] h-[200px] bg-white border-2 border-blue-500 shadow-sm overflow-hidden flex items-center justify-center">
                     {qrString ? (
                         <canvas ref={qrRef} className="w-full h-full" />
                     ) : (
@@ -237,32 +232,32 @@ export const SlipPreview: React.FC<SlipPreviewProps> = ({ customer, company, id 
                 </div>
                 
                 {/* Payment Details below QR - Compact */}
-                <div className={`mt-1.5 text-center space-y-0.5 text-xs max-w-md leading-tight`}>
-                    <p className="leading-tight">
+                <div className="mt-1.5 text-center space-y-0.5 text-sm max-w-md leading-tight">
+                    <p className="leading-tight break-words">
                         <span className="font-bold text-red-700">Số tiền:</span> <span className="font-semibold">{formatMoney(customer.amount)}</span>
                     </p>
                     <p className="leading-tight break-words">
                         <span className="font-bold text-red-700">Nội dung:</span> <span className="font-semibold">{customer.transferContent || "(Chưa có nội dung)"}</span>
                     </p>
-                    <p className="leading-tight">
+                    <p className="leading-tight break-words">
                         <span className="font-bold text-red-700">Tên chủ TK:</span> <span className="font-semibold">{company.bankAccountName}</span>
                     </p>
-                    <p className="leading-tight">
+                    <p className="leading-tight break-words">
                         <span className="font-bold text-red-700">Số TK:</span> <span className="font-bold">{company.bankAccountNumber}</span>
                     </p>
-                    <p className="leading-tight">
+                    <p className="leading-tight break-words">
                         <span className="font-bold text-red-700">{company.bankName}</span>
                     </p>
                 </div>
             </div>
 
             {/* Footer - Compact */}
-            <div className={`border-t-2 border-black ${isLongContent ? "pt-1.5" : (isSettlement ? "pt-2" : "pt-2.5")} text-xs text-justify`}>
-                <p className={`leading-tight font-bold text-red-700 ${isLongContent ? "mb-1" : "mb-1.5"}`}>
+            <div className="border-t-2 border-black pt-2 text-sm text-justify">
+                <p className="leading-tight font-bold text-red-700 mb-1.5 break-words">
                     <span className="font-bold">Lưu ý: </span>
                     {company.name} sẽ không hoàn lại khoản tiền đã đóng với bất kỳ lý do gì. Quý khách vui lòng kiểm tra đầy đủ thông tin số tiền và nội dung chuyển khoản. Mọi chi tiết xin liên hệ Bộ phận Chăm sóc khách hàng giải đáp thắc mắc.
                 </p>
-                <p className={`font-bold text-center text-sm leading-tight ${isLongContent ? "mt-1" : "mt-1.5"}`}>
+                <p className="font-bold text-center text-sm leading-tight mt-1.5 break-words">
                     Hotline: {company.hotline}
                 </p>
             </div>
