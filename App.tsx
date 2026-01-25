@@ -26,6 +26,37 @@ const App: React.FC = () => {
   const fileNameInputRef = useRef<HTMLInputElement>(null);
   const previewContainerRef = useRef<HTMLDivElement>(null);
 
+  const getSlipPrefix = (type: CustomerData['type']) =>
+    type === 'SETTLEMENT' ? 'Phiếu tất toán' : 'Phiếu thu tiền';
+
+  const formatDayMonthForFileName = (date: Date = new Date()) => {
+    const dd = String(date.getDate()).padStart(2, '0');
+    const mm = String(date.getMonth() + 1).padStart(2, '0');
+    // NOTE: Windows không cho phép "/" trong tên file, nên dùng "-" thay cho ngày/tháng.
+    return `(${dd}-${mm})`;
+  };
+
+  const buildAutoPdfBaseName = (data: CustomerData) => {
+    if (!data.fullName?.trim()) return '';
+    return `${getSlipPrefix(data.type)} - ${data.fullName.trim()} ${formatDayMonthForFileName()}`;
+  };
+
+  const sanitizeFileName = (name: string) => {
+    // Remove characters that are invalid for Windows/macOS filenames
+    // \ / : * ? " < > | plus newlines/tabs.
+    let safe = name.replace(/[\\/:*?"<>|\r\n\t]/g, '-');
+    // Collapse whitespace and dashes a bit
+    safe = safe.replace(/\s+/g, ' ').replace(/\s*-\s*/g, ' - ').trim();
+    // Windows also dislikes trailing dots/spaces
+    safe = safe.replace(/[.\s]+$/g, '');
+    return safe;
+  };
+
+  const ensurePdfExtension = (name: string) => {
+    const trimmed = name.trim();
+    return trimmed.toLowerCase().endsWith('.pdf') ? trimmed : `${trimmed}.pdf`;
+  };
+
   // Calculate scale to fit A4 preview in the container
   useEffect(() => {
     const calculateScale = () => {
@@ -52,14 +83,9 @@ const App: React.FC = () => {
     const isInputFocused = document.activeElement === fileNameInputRef.current;
     
     if (!isFileNameManuallyEdited && !isInputFocused) {
-      if (customerData.fullName) {
-        const autoFileName = `PHIẾU THU TIỀN - ${customerData.fullName}`;
-        setPdfFileName(autoFileName);
-      } else {
-        setPdfFileName('');
-      }
+      setPdfFileName(buildAutoPdfBaseName(customerData));
     }
-  }, [customerData.fullName, isFileNameManuallyEdited]);
+  }, [customerData.fullName, customerData.type, isFileNameManuallyEdited]);
 
   const handleDownloadPDF = async () => {
     const input = document.getElementById('print-area');
@@ -150,14 +176,11 @@ const App: React.FC = () => {
 
         pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
 
-        // Use custom filename if provided, otherwise use default
-        const defaultFileName = customerData.fullName 
-          ? `PHIẾU THU TIỀN - ${customerData.fullName}.pdf`
-          : 'PHIẾU THU TIỀN.pdf';
-        const fileName = pdfFileName.trim() 
-          ? `${pdfFileName.trim()}.pdf` 
-          : defaultFileName;
-        pdf.save(fileName);
+        // Use custom filename if provided, otherwise use default (auto)
+        const autoBase = buildAutoPdfBaseName(customerData) || getSlipPrefix(customerData.type);
+        const base = pdfFileName.trim() ? pdfFileName.trim() : autoBase;
+        const safeFileName = ensurePdfExtension(sanitizeFileName(base));
+        pdf.save(safeFileName);
 
         // TODO: Note - Phần này để sau này xóa (Stage 4: Success - đã xuất khi thành công)
         setLoadingStage('success');
@@ -274,9 +297,7 @@ const App: React.FC = () => {
                   setPdfFileName(newValue);
                   
                   // Check if the new value matches the current auto-generated format
-                  const expectedAutoFileName = customerData.fullName 
-                    ? `PHIẾU THU TIỀN - ${customerData.fullName}`
-                    : '';
+                  const expectedAutoFileName = buildAutoPdfBaseName(customerData);
                   
                   // Mark as manually edited if it's different from auto format
                   if (newValue !== expectedAutoFileName) {
@@ -288,20 +309,16 @@ const App: React.FC = () => {
                 }}
                 onBlur={() => {
                   // When user leaves the input, check if it matches auto format
-                  const expectedAutoFileName = customerData.fullName 
-                    ? `PHIẾU THU TIỀN - ${customerData.fullName}`
-                    : '';
+                  const expectedAutoFileName = buildAutoPdfBaseName(customerData);
                   
                   if (pdfFileName === expectedAutoFileName || !pdfFileName.trim()) {
                     setIsFileNameManuallyEdited(false);
                     // Update to current format if empty
-                    if (!pdfFileName.trim() && customerData.fullName) {
-                      setPdfFileName(expectedAutoFileName);
-                    }
+                    if (!pdfFileName.trim()) setPdfFileName(expectedAutoFileName);
                   }
                 }}
-                placeholder={customerData.fullName ? `PHIẾU THU TIỀN - ${customerData.fullName}` : 'PHIẾU THU TIỀN - TÊN KHÁCH HÀNG'}
-                className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent w-64"
+                placeholder={buildAutoPdfBaseName(customerData) || `${getSlipPrefix(customerData.type)} - Tên khách hàng ${formatDayMonthForFileName()}`}
+                className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent w-80 sm:w-96 md:w-[420px]"
                 disabled={isExporting}
               />
             </div>
