@@ -165,14 +165,20 @@ const App: React.FC = () => {
         // html2canvas might need windowWidth/windowHeight or explicit scale adjustment.
         // However, since the transform is on the parent wrapper and we capture the child,
         // we mainly need to ensure high scale in options.
+        // PDF size is mostly driven by the embedded raster image.
+        // scale=3 + PNG (lossless) can easily create 20MB+ PDFs.
+        // Use a slightly lower scale and JPEG (lossy) to keep files small while staying print-friendly.
+        const EXPORT_SCALE = 2; // 2 is usually enough for A4 print
+        const JPEG_QUALITY = 0.82; // 0..1
+
         const canvas = await html2canvas(input, {
-            scale: 3, // Higher scale for better quality
+            scale: EXPORT_SCALE,
             useCORS: true,
             logging: false,
             backgroundColor: '#ffffff'
         });
 
-        const imgData = canvas.toDataURL('image/png');
+        const imgData = canvas.toDataURL('image/jpeg', JPEG_QUALITY);
         
         // A4 Dimensions in mm
         const pdfWidth = 210; 
@@ -181,10 +187,11 @@ const App: React.FC = () => {
         const pdf = new jsPDF({
             orientation: 'portrait',
             unit: 'mm',
-            format: 'a4'
+            format: 'a4',
+            compress: true
         });
 
-        pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+        pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight, undefined, 'FAST');
 
         // Use custom filename if provided, otherwise use default (auto)
         const autoBase = buildAutoPdfBaseName(customerData) || getSlipPrefix(customerData.type);
