@@ -32,13 +32,23 @@ const App: React.FC = () => {
   const formatDayMonthForFileName = (date: Date = new Date()) => {
     const dd = String(date.getDate()).padStart(2, '0');
     const mm = String(date.getMonth() + 1).padStart(2, '0');
-    // NOTE: Windows không cho phép "/" trong tên file, nên dùng "-" thay cho ngày/tháng.
-    return `(${dd}-${mm})`;
+    // Hiển thị đúng cú pháp ngày/tháng như yêu cầu.
+    // Khi lưu file, ký tự "/" sẽ được sanitize thành "-" để hợp lệ trên Windows.
+    return `(${dd}/${mm})`;
+  };
+
+  const getDateForFileName = (data: CustomerData) => {
+    // Ưu tiên lấy theo "Thời hạn thanh toán" (deadline). Nếu thiếu/không hợp lệ thì dùng ngày hiện tại.
+    if (data.deadline) {
+      const d = new Date(data.deadline);
+      if (!isNaN(d.getTime())) return d;
+    }
+    return new Date();
   };
 
   const buildAutoPdfBaseName = (data: CustomerData) => {
     if (!data.fullName?.trim()) return '';
-    return `${getSlipPrefix(data.type)} - ${data.fullName.trim()} ${formatDayMonthForFileName()}`;
+    return `${getSlipPrefix(data.type)} - ${data.fullName.trim()} ${formatDayMonthForFileName(getDateForFileName(data))}`;
   };
 
   const sanitizeFileName = (name: string) => {
@@ -85,7 +95,7 @@ const App: React.FC = () => {
     if (!isFileNameManuallyEdited && !isInputFocused) {
       setPdfFileName(buildAutoPdfBaseName(customerData));
     }
-  }, [customerData.fullName, customerData.type, isFileNameManuallyEdited]);
+  }, [customerData.fullName, customerData.type, customerData.deadline, isFileNameManuallyEdited]);
 
   const handleDownloadPDF = async () => {
     const input = document.getElementById('print-area');
@@ -317,7 +327,10 @@ const App: React.FC = () => {
                     if (!pdfFileName.trim()) setPdfFileName(expectedAutoFileName);
                   }
                 }}
-                placeholder={buildAutoPdfBaseName(customerData) || `${getSlipPrefix(customerData.type)} - Tên khách hàng ${formatDayMonthForFileName()}`}
+                placeholder={
+                  buildAutoPdfBaseName(customerData) ||
+                  `${getSlipPrefix(customerData.type)} - Tên khách hàng ${formatDayMonthForFileName(getDateForFileName(customerData))}`
+                }
                 className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent w-80 sm:w-96 md:w-[420px]"
                 disabled={isExporting}
               />
