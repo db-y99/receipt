@@ -168,8 +168,9 @@ const App: React.FC = () => {
         // PDF size is mostly driven by the embedded raster image.
         // scale=3 + PNG (lossless) can easily create 20MB+ PDFs.
         // Use a slightly lower scale and JPEG (lossy) to keep files small while staying print-friendly.
-        const EXPORT_SCALE = 2; // 2 is usually enough for A4 print
-        const JPEG_QUALITY = 0.82; // 0..1
+        // Increase sharpness a bit (still keeping file size reasonable)
+        const EXPORT_SCALE = 2.6; // higher = sharper text/lines, bigger file
+        const JPEG_QUALITY = 0.92; // higher = less compression artifacts, bigger file
 
         const canvas = await html2canvas(input, {
             scale: EXPORT_SCALE,
@@ -191,7 +192,8 @@ const App: React.FC = () => {
             compress: true
         });
 
-        pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight, undefined, 'FAST');
+        // Use higher-quality interpolation (slower, but sharper)
+        pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight, undefined, 'SLOW');
 
         // Use custom filename if provided, otherwise use default (auto)
         const autoBase = buildAutoPdfBaseName(customerData) || getSlipPrefix(customerData.type);
