@@ -1,4 +1,4 @@
-export type SlipType = 'STANDARD' | 'SETTLEMENT';
+export type SlipType = 'STANDARD' | 'SETTLEMENT' | 'CASH';
 
 export interface PeriodBreakdown {
   periodNumber: number;    // Số kỳ (Kỳ 2, Kỳ 3, ...)
@@ -16,6 +16,7 @@ export interface CustomerData {
   address: string;
   amount: number;
   deadline: string; // YYYY-MM-DD
+  receiptNumber: string; // Số phiếu (phiếu thu tiền mặt)
   
   // Settlement breakdown fields
   principal: number;       // Gốc

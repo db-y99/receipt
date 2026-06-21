@@ -19,6 +19,7 @@ export const DEFAULT_CUSTOMER_DATA: CustomerData = {
   address: "",
   amount: 0,
   deadline: new Date().toISOString().split('T')[0],
+  receiptNumber: "",
   
   // Default zeroes for breakdown
   principal: 0,

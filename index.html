@@ -33,6 +33,15 @@
         -moz-appearance: textfield;
         appearance: textfield;
       }
+      @media print {
+        @page {
+          size: A4 portrait;
+          margin: 0;
+        }
+        body {
+          background: white !important;
+        }
+      }
     </style>
   <script type="importmap">
 {

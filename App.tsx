@@ -26,8 +26,11 @@ const App: React.FC = () => {
   const fileNameInputRef = useRef<HTMLInputElement>(null);
   const previewContainerRef = useRef<HTMLDivElement>(null);
 
-  const getSlipPrefix = (type: CustomerData['type']) =>
-    type === 'SETTLEMENT' ? 'Phiếu tất toán' : 'Phiếu thu tiền';
+  const getSlipPrefix = (type: CustomerData['type']) => {
+    if (type === 'SETTLEMENT') return 'Phiếu tất toán';
+    if (type === 'CASH') return 'Phiếu thu tiền mặt';
+    return 'Phiếu thu tiền';
+  };
 
   const formatDayMonthForFileName = (date: Date = new Date()) => {
     const dd = String(date.getDate()).padStart(2, '0');
@@ -157,26 +160,23 @@ const App: React.FC = () => {
           await new Promise(resolve => setTimeout(resolve, stage3Time));
         }
 
-        // Wait for images to render
+        // Wait for fonts/images to render
+        await document.fonts?.ready;
         await new Promise(resolve => setTimeout(resolve, imageRenderTime));
 
-        // When capturing, we want high resolution.
-        // If the element is visually scaled down by CSS transform on parent, 
-        // html2canvas might need windowWidth/windowHeight or explicit scale adjustment.
-        // However, since the transform is on the parent wrapper and we capture the child,
-        // we mainly need to ensure high scale in options.
-        // PDF size is mostly driven by the embedded raster image.
-        // scale=3 + PNG (lossless) can easily create 20MB+ PDFs.
-        // Use a slightly lower scale and JPEG (lossy) to keep files small while staying print-friendly.
-        // Increase sharpness a bit (still keeping file size reasonable)
-        const EXPORT_SCALE = 2.6; // higher = sharper text/lines, bigger file
-        const JPEG_QUALITY = 0.92; // higher = less compression artifacts, bigger file
+        const EXPORT_SCALE = 3;
+        const JPEG_QUALITY = 0.95;
 
+        // Capture print-area at true layout size (ignore preview scale wrapper)
         const canvas = await html2canvas(input, {
             scale: EXPORT_SCALE,
             useCORS: true,
             logging: false,
-            backgroundColor: '#ffffff'
+            backgroundColor: '#ffffff',
+            width: input.scrollWidth,
+            height: input.scrollHeight,
+            scrollX: 0,
+            scrollY: -window.scrollY,
         });
 
         const imgData = canvas.toDataURL('image/jpeg', JPEG_QUALITY);
@@ -402,17 +402,17 @@ const App: React.FC = () => {
                     style={{
                         transform: `scale(${scale})`,
                         transformOrigin: 'top center',
-                        // Reserve physical space for the scaled element to prevent overlap
-                        // 297mm height scaled down
                         height: `calc(297mm * ${scale})`,
                         marginBottom: '20px'
                     }}
                  >
+                     <div className="shadow-2xl print:shadow-none">
                      <SlipPreview 
                         id="print-area"
                         customer={customerData} 
                         company={DEFAULT_COMPANY_INFO} 
                      />
+                     </div>
                  </div>
             </div>
           </div>

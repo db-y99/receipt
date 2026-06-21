@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { CustomerData, SlipType, PeriodBreakdown } from '../types';
-import { FileText, Calculator, RefreshCw, Plus, Trash2 } from 'lucide-react';
+import { FileText, Calculator, RefreshCw, Plus, Trash2, Banknote } from 'lucide-react';
 
 interface InputFormProps {
   data: CustomerData;
@@ -184,24 +184,35 @@ export const InputForm: React.FC<InputFormProps> = ({ data, onChange }) => {
       <div className="mb-6 flex p-1 bg-gray-100 rounded-lg">
         <button
           onClick={() => handleTypeChange('STANDARD')}
-          className={`flex-1 flex items-center justify-center gap-2 py-2 text-sm font-medium rounded-md transition-all ${
+          className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-xs sm:text-sm font-medium rounded-md transition-all ${
             data.type === 'STANDARD' 
               ? 'bg-white text-blue-600 shadow-sm' 
               : 'text-gray-500 hover:text-gray-700'
           }`}
         >
-          <FileText className="w-4 h-4" />
+          <FileText className="w-4 h-4 shrink-0" />
           Phiếu Thu Thường
         </button>
         <button
+          onClick={() => handleTypeChange('CASH')}
+          className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-xs sm:text-sm font-medium rounded-md transition-all ${
+            data.type === 'CASH' 
+              ? 'bg-white text-blue-600 shadow-sm' 
+              : 'text-gray-500 hover:text-gray-700'
+          }`}
+        >
+          <Banknote className="w-4 h-4 shrink-0" />
+          Phiếu Tiền Mặt
+        </button>
+        <button
           onClick={() => handleTypeChange('SETTLEMENT')}
-          className={`flex-1 flex items-center justify-center gap-2 py-2 text-sm font-medium rounded-md transition-all ${
+          className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-xs sm:text-sm font-medium rounded-md transition-all ${
             data.type === 'SETTLEMENT' 
               ? 'bg-white text-blue-600 shadow-sm' 
               : 'text-gray-500 hover:text-gray-700'
           }`}
         >
-          <Calculator className="w-4 h-4" />
+          <Calculator className="w-4 h-4 shrink-0" />
           Phiếu Tất Toán
         </button>
       </div>
@@ -219,6 +230,7 @@ export const InputForm: React.FC<InputFormProps> = ({ data, onChange }) => {
             />
           </div>
           
+          {data.type !== 'CASH' && (
           <div className="space-y-1">
             <label className="text-xs font-medium text-gray-700">Mã khách hàng</label>
             <input
@@ -228,6 +240,7 @@ export const InputForm: React.FC<InputFormProps> = ({ data, onChange }) => {
               onChange={(e) => handleChange('customerId', e.target.value)}
             />
           </div>
+          )}
 
           <div className="space-y-1">
             <label className="text-xs font-medium text-gray-700">Mã hợp đồng</label>
@@ -266,7 +279,7 @@ export const InputForm: React.FC<InputFormProps> = ({ data, onChange }) => {
           {/* Breakdown Fields - For both STANDARD and SETTLEMENT */}
           <div className="md:col-span-2 grid grid-cols-2 gap-4 bg-blue-50 p-4 rounded-lg border border-blue-100">
                 <div className="col-span-2 text-xs font-bold text-blue-800 uppercase tracking-wide">
-                    {data.type === 'SETTLEMENT' ? 'Chi tiết tất toán' : 'Chi tiết thanh toán'}
+                    {data.type === 'SETTLEMENT' ? 'Chi tiết tất toán' : data.type === 'CASH' ? 'Chi tiết thu tiền mặt' : 'Chi tiết thanh toán'}
                 </div>
                 <div className="space-y-1">
                     <label className="text-xs font-medium text-gray-700">Gốc</label>
@@ -471,7 +484,20 @@ export const InputForm: React.FC<InputFormProps> = ({ data, onChange }) => {
             />
           </div>
 
-          <div className="space-y-1 md:col-span-2">
+          {data.type === 'CASH' && (
+          <div className="space-y-1">
+            <label className="text-xs font-medium text-gray-700">Số phiếu</label>
+            <input
+              type="text"
+              className="w-full p-2 bg-white text-gray-900 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 outline-none placeholder-gray-400 min-w-0"
+              value={data.receiptNumber}
+              onChange={(e) => handleChange('receiptNumber', e.target.value)}
+              placeholder="VD: PT001"
+            />
+          </div>
+          )}
+
+          <div className={`space-y-1 ${data.type === 'CASH' ? '' : 'md:col-span-2'}`}>
             <label className="text-xs font-medium text-gray-700">Thời hạn thanh toán</label>
             <input
               type="date"
@@ -481,6 +507,7 @@ export const InputForm: React.FC<InputFormProps> = ({ data, onChange }) => {
             />
           </div>
 
+          {data.type !== 'CASH' && (
           <div className="space-y-1 md:col-span-2">
             <div className="flex items-center justify-between">
               <label className="text-xs font-medium text-gray-700">Nội dung chuyển khoản</label>
@@ -524,6 +551,7 @@ export const InputForm: React.FC<InputFormProps> = ({ data, onChange }) => {
               </p>
             </div>
           </div>
+          )}
         </div>
       </div>
     </div>
