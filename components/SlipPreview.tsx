@@ -298,10 +298,6 @@ export const SlipPreview: React.FC<SlipPreviewProps> = ({ customer, company, id 
             <span className="font-medium break-words flex-1">{customer.fullName}</span>
           </div>
           <div className="flex items-start leading-tight">
-            <span className="font-bold w-[180px] shrink-0">Mã khách hàng:</span>
-            <span className="font-medium break-words flex-1">{customer.customerId}</span>
-          </div>
-          <div className="flex items-start leading-tight">
             <span className="font-bold w-[180px] shrink-0">Mã số hợp đồng:</span>
             <span className="font-medium break-words flex-1">{customer.contractId}</span>
           </div>

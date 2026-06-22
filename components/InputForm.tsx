@@ -229,18 +229,6 @@ export const InputForm: React.FC<InputFormProps> = ({ data, onChange }) => {
               onChange={(e) => handleChange('fullName', e.target.value)}
             />
           </div>
-          
-          {data.type !== 'CASH' && (
-          <div className="space-y-1">
-            <label className="text-xs font-medium text-gray-700">Mã khách hàng</label>
-            <input
-              type="text"
-              className="w-full p-2 bg-white text-gray-900 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 outline-none placeholder-gray-400 min-w-0"
-              value={data.customerId}
-              onChange={(e) => handleChange('customerId', e.target.value)}
-            />
-          </div>
-          )}
 
           <div className="space-y-1">
             <label className="text-xs font-medium text-gray-700">Mã hợp đồng</label>
@@ -263,6 +251,19 @@ export const InputForm: React.FC<InputFormProps> = ({ data, onChange }) => {
               readOnly={true}
             />
           </div>
+
+          {data.type === 'CASH' && (
+          <div className="space-y-1">
+            <label className="text-xs font-medium text-gray-700">Số phiếu</label>
+            <input
+              type="text"
+              className="w-full p-2 bg-white text-gray-900 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 outline-none placeholder-gray-400 min-w-0"
+              value={data.receiptNumber}
+              onChange={(e) => handleChange('receiptNumber', e.target.value)}
+              placeholder="VD: PT001"
+            />
+          </div>
+          )}
 
           <div className="space-y-1 md:col-span-2">
             <label className="text-xs font-medium text-gray-700">Địa chỉ</label>
@@ -344,6 +345,19 @@ export const InputForm: React.FC<InputFormProps> = ({ data, onChange }) => {
                           handleChange('overdueFee', val);
                         }}
                         onPaste={(e) => handleNumberPaste(e, 'overdueFee')}
+                    />
+                </div>
+                <div className="space-y-1">
+                    <label className="text-xs font-medium text-gray-700">Gốc còn lại</label>
+                    <input
+                        type="number"
+                        className="w-full p-2 bg-white border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 outline-none"
+                        value={data.remainingPrincipal || ''}
+                        onChange={(e) => {
+                          const val = parseNumberInput(e.target.value);
+                          handleChange('remainingPrincipal', val);
+                        }}
+                        onPaste={(e) => handleNumberPaste(e, 'remainingPrincipal')}
                     />
                 </div>
             </div>
@@ -464,40 +478,7 @@ export const InputForm: React.FC<InputFormProps> = ({ data, onChange }) => {
             )}
           </div>
 
-          {/* Remaining Principal */}
-          <div className="space-y-1">
-            <label className="text-xs font-medium text-gray-700">Gốc còn lại</label>
-            <input
-              type="number"
-              className="w-full p-2 bg-white text-gray-900 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 outline-none placeholder-gray-400"
-              value={data.remainingPrincipal || ''}
-              onChange={(e) => {
-                const val = parseNumberInput(e.target.value);
-                handleChange('remainingPrincipal', val);
-              }}
-              onPaste={(e) => {
-                e.preventDefault();
-                const pastedText = e.clipboardData.getData('text');
-                const cleanedValue = parseNumberInput(pastedText);
-                handleChange('remainingPrincipal', cleanedValue);
-              }}
-            />
-          </div>
-
-          {data.type === 'CASH' && (
-          <div className="space-y-1">
-            <label className="text-xs font-medium text-gray-700">Số phiếu</label>
-            <input
-              type="text"
-              className="w-full p-2 bg-white text-gray-900 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 outline-none placeholder-gray-400 min-w-0"
-              value={data.receiptNumber}
-              onChange={(e) => handleChange('receiptNumber', e.target.value)}
-              placeholder="VD: PT001"
-            />
-          </div>
-          )}
-
-          <div className={`space-y-1 ${data.type === 'CASH' ? '' : 'md:col-span-2'}`}>
+          <div className="space-y-1 md:col-span-2">
             <label className="text-xs font-medium text-gray-700">Thời hạn thanh toán</label>
             <input
               type="date"
