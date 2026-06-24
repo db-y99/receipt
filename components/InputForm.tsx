@@ -266,7 +266,7 @@ export const InputForm: React.FC<InputFormProps> = ({ data, onChange }) => {
           )}
 
           <div className="space-y-1 md:col-span-2">
-            <label className="text-xs font-medium text-gray-700">Địa chỉ</label>
+            <label className="text-xs font-medium text-gray-700">{data.type === 'CASH' ? 'Nội dung' : 'Địa chỉ'}</label>
             <textarea
               ref={addressTextareaRef}
               rows={2}

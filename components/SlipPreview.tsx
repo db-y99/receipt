@@ -99,7 +99,7 @@ const CashSlipPanel: React.FC<CashSlipPanelProps> = ({ customer, company }) => {
               <span className="font-medium break-words flex-1">{customer.contractId}</span>
             </div>
             <div className="flex items-start leading-snug">
-              <span className="font-bold w-[150px] shrink-0">Địa chỉ:</span>
+              <span className="font-bold w-[150px] shrink-0">Nội dung:</span>
               <span className="font-medium break-words flex-1">{customer.address}</span>
             </div>
 
