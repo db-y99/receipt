@@ -1,5 +1,5 @@
 import type { Connect, Plugin } from 'vite';
-import { buildApplicationSearchUrl } from '../server/applicationSearchParams';
+import { buildApplicationSearchUrl } from '../api/lib/applicationSearchParams';
 
 function createSearchHandler(apiBaseUrl: string, apiLogin: string): Connect.NextHandleFunction {
   return async (req, res, next) => {
