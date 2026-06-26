@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { CustomerData, SlipType, PeriodBreakdown } from '../types';
 import { FileText, Calculator, RefreshCw, Plus, Trash2, Banknote } from 'lucide-react';
+import { CustomerSearch } from './CustomerSearch';
 
 interface InputFormProps {
   data: CustomerData;
@@ -220,25 +221,11 @@ export const InputForm: React.FC<InputFormProps> = ({ data, onChange }) => {
       <div>
         <h2 className="text-lg font-semibold text-gray-800 mb-4">Thông tin khách hàng</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 min-w-0">
-          <div className="space-y-1">
-            <label className="text-xs font-medium text-gray-700">Họ tên khách hàng</label>
-            <input
-              type="text"
-              className="w-full p-2 bg-white text-gray-900 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 outline-none placeholder-gray-400 min-w-0"
-              value={data.fullName}
-              onChange={(e) => handleChange('fullName', e.target.value)}
-            />
-          </div>
-
-          <div className="space-y-1">
-            <label className="text-xs font-medium text-gray-700">Mã hợp đồng</label>
-            <input
-              type="text"
-              className="w-full p-2 bg-white text-gray-900 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 outline-none placeholder-gray-400 min-w-0"
-              value={data.contractId}
-              onChange={(e) => handleChange('contractId', e.target.value)}
-            />
-          </div>
+          <CustomerSearch
+            data={data}
+            onChange={onChange}
+            onFieldChange={handleChange}
+          />
 
            <div className="space-y-1">
             <label className="text-xs font-medium text-gray-700">
