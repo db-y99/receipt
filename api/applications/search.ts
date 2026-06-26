@@ -8,7 +8,7 @@ function buildApplicationSearchUrl(apiBaseUrl: string, query: string, login?: st
     sort: '-id',
     limit: String(APPLICATION_SEARCH_LIMIT),
     values: APPLICATION_FIELDS.join(','),
-    filter: JSON.stringify({ create_time__date__gte: '1927-12-03' }),
+    filter: JSON.stringify({ create_time__date__gte: '1927-12-03', status: 7 }),
     filter_or: JSON.stringify({
       fullname__icontains: query,
       code__icontains: query,
