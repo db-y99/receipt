@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
-const APPLICATION_FIELDS = ['id', 'fullname', 'customer__code', 'code', 'phone'] as const;
+const APPLICATION_FIELDS = ['id', 'fullname', 'customer__code', 'code', 'phone', 'address'] as const;
 const APPLICATION_SEARCH_LIMIT = 15;
 
 function buildApplicationSearchUrl(apiBaseUrl: string, query: string, login?: string): string {

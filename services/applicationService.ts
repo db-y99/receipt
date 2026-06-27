@@ -1,4 +1,4 @@
-const APPLICATION_SEARCH_PATH = '/api/applications/search';
+const APPLICATION_SEARCH_PATH = "/api/applications/search";
 
 export interface ApplicationRecord {
   id: number;
@@ -6,6 +6,7 @@ export interface ApplicationRecord {
   customer__code: string;
   code: string;
   phone: string;
+  address: string;
 }
 
 function normalizeResults(payload: unknown): ApplicationRecord[] {
@@ -13,7 +14,7 @@ function normalizeResults(payload: unknown): ApplicationRecord[] {
     return payload as ApplicationRecord[];
   }
 
-  if (payload && typeof payload === 'object') {
+  if (payload && typeof payload === "object") {
     const record = payload as Record<string, unknown>;
     const candidates = [record.data, record.results, record.items, record.rows];
 
@@ -27,21 +28,28 @@ function normalizeResults(payload: unknown): ApplicationRecord[] {
   return [];
 }
 
-
-export async function searchApplications(query: string): Promise<ApplicationRecord[]> {
+export async function searchApplications(
+  query: string,
+): Promise<ApplicationRecord[]> {
   const trimmedQuery = query.trim();
   if (!trimmedQuery || trimmedQuery.length < 2) {
     return [];
   }
 
   const params = new URLSearchParams({ q: trimmedQuery });
-  const response = await fetch(`${APPLICATION_SEARCH_PATH}?${params.toString()}`);
+  const response = await fetch(
+    `${APPLICATION_SEARCH_PATH}?${params.toString()}`,
+  );
 
   if (!response.ok) {
     let message = `Tìm kiếm thất bại (${response.status})`;
     try {
       const errorPayload = await response.json();
-      if (errorPayload && typeof errorPayload === 'object' && 'error' in errorPayload) {
+      if (
+        errorPayload &&
+        typeof errorPayload === "object" &&
+        "error" in errorPayload
+      ) {
         message = String(errorPayload.error);
       }
     } catch {
@@ -56,8 +64,9 @@ export async function searchApplications(query: string): Promise<ApplicationReco
 
 export function mapApplicationToCustomerFields(application: ApplicationRecord) {
   return {
-    fullName: application.fullname || '',
-    contractId: application.code || '',
-    customerId: application.customer__code || '',
+    fullName: application.fullname || "",
+    contractId: application.code || "",
+    customerId: application.customer__code || "",
+    address: application.address?.trim() || "",
   };
 }

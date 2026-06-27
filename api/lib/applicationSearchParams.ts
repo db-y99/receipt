@@ -4,6 +4,7 @@ export const APPLICATION_FIELDS = [
   'customer__code',
   'code',
   'phone',
+  'address',
 ] as const;
 
 export const APPLICATION_SEARCH_LIMIT = 15;
