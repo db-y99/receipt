@@ -4,7 +4,7 @@ import { CustomerData, UpgradePackage } from './types';
 import { InputForm } from './components/InputForm';
 import { SlipPreview } from './components/SlipPreview';
 import { UpgradePackageSelector } from './components/UpgradePackage';
-import { Printer, Download, CheckCircle2, Zap } from 'lucide-react'; // TODO: Note - CheckCircle2 để sau này xóa
+import { Printer, Download, CheckCircle2, Zap, CalendarClock } from 'lucide-react'; // TODO: Note - CheckCircle2 để sau này xóa
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import { getStoredPackage, getPackageInfo } from './upgradePackages';
@@ -282,6 +282,14 @@ const App: React.FC = () => {
           </div>
           
           <div className="flex items-center gap-2 flex-wrap">
+            <a
+              href="/due-soon"
+              className="flex items-center gap-2 px-3 py-2 rounded-lg transition-colors text-sm font-medium border bg-emerald-50 border-emerald-300 text-emerald-800 hover:bg-emerald-100"
+              title="Trang tạo phiếu từ khoản vay đến hạn"
+            >
+              <CalendarClock className="w-4 h-4" />
+              <span className="hidden sm:inline">Đến hạn 3 ngày</span>
+            </a>
             <button
               onClick={() => setShowUpgradeModal(true)}
               className={`
@@ -384,6 +392,7 @@ const App: React.FC = () => {
                     <li>Nhập đầy đủ thông tin khách hàng.</li>
                     <li>Mã QR tự động cập nhật số tiền và nội dung.</li>
                     <li>Nhấn "Xuất PDF" để tải về phiếu in khổ A4.</li>
+                    <li>Phiếu từ khoản vay đến hạn: mở trang &quot;Đến hạn 3 ngày&quot; (phiếu thu thường).</li>
                 </ul>
             </div>
           </div>

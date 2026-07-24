@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { UpgradePackage, PackageInfo } from '../types';
-import { UPGRADE_PACKAGES, getStoredPackage, setStoredPackage } from '../upgradePackages';
+import { UPGRADE_PACKAGES, setStoredPackage } from '../upgradePackages';
 import { Zap, Check, Crown, Star, X } from 'lucide-react';
 
 interface UpgradePackageProps {
@@ -9,10 +9,10 @@ interface UpgradePackageProps {
   onClose?: () => void;
 }
 
-export const UpgradePackageSelector: React.FC<UpgradePackageProps> = ({ 
-  currentPackage, 
+export const UpgradePackageSelector: React.FC<UpgradePackageProps> = ({
+  currentPackage,
   onPackageChange,
-  onClose 
+  onClose
 }) => {
   const [selectedPackage, setSelectedPackage] = useState<UpgradePackage>(currentPackage);
 
@@ -100,7 +100,7 @@ export const UpgradePackageSelector: React.FC<UpgradePackageProps> = ({
           {Object.values(UPGRADE_PACKAGES).map((pkg) => {
             const isSelected = selectedPackage === pkg.id;
             const isCurrent = currentPackage === pkg.id;
-            
+
             return (
               <div
                 key={pkg.id}
@@ -112,11 +112,11 @@ export const UpgradePackageSelector: React.FC<UpgradePackageProps> = ({
                   hover:shadow-lg
                 `}
                 style={{
-                  ringColor: isSelected 
-                    ? pkg.color === 'gray' ? '#9ca3af' 
+                  ringColor: isSelected
+                    ? pkg.color === 'gray' ? '#9ca3af'
                       : pkg.color === 'blue' ? '#3b82f6'
-                      : pkg.color === 'purple' ? '#9333ea'
-                      : '#eab308'
+                        : pkg.color === 'purple' ? '#9333ea'
+                          : '#eab308'
                     : undefined
                 }}
               >
