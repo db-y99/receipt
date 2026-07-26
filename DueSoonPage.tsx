@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
+import JSZip from 'jszip';
 import { DEFAULT_COMPANY_INFO } from './constants';
 import { CustomerData } from './types';
 import { SlipPreview } from './components/SlipPreview';
@@ -74,6 +75,27 @@ function sanitizeFileName(name: string): string {
 function ensurePdfExtension(name: string): string {
   const trimmed = name.trim();
   return trimmed.toLowerCase().endsWith('.pdf') ? trimmed : `${trimmed}.pdf`;
+}
+
+function buildZipFileName(): string {
+  const now = new Date();
+  const yyyy = now.getFullYear();
+  const mm = String(now.getMonth() + 1).padStart(2, '0');
+  const dd = String(now.getDate()).padStart(2, '0');
+  return `Phieu-thu-tien-${yyyy}-${mm}-${dd}.zip`;
+}
+
+function downloadBlob(blob: Blob, fileName: string): void {
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = fileName;
+  anchor.rel = 'noopener';
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  // Revoke sau một nhịp để trình duyệt kịp bắt đầu tải
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
 const DueSoonPage: React.FC = () => {
@@ -195,6 +217,7 @@ const DueSoonPage: React.FC = () => {
       await document.fonts?.ready;
 
       const usedNames = new Set<string>();
+      const generated: { fileName: string; blob: Blob }[] = [];
 
       for (let i = 0; i < slipQueue.length; i++) {
         flushSync(() => setQueueIndex(i));
@@ -234,10 +257,19 @@ const DueSoonPage: React.FC = () => {
           slipQueue.length > 1 && contractHint
             ? `${buildPdfBaseName(slip)}${contractHint}`
             : buildPdfBaseName(slip);
-        pdf.save(uniquePdfFileName(base, usedNames));
+        const fileName = uniquePdfFileName(base, usedNames);
+        generated.push({ fileName, blob: pdf.output('blob') });
+      }
 
-        // Tránh trình duyệt gộp / chặn nhiều download liên tiếp
-        if (i < slipQueue.length - 1) await waitMs(350);
+      if (generated.length === 1) {
+        downloadBlob(generated[0].blob, generated[0].fileName);
+      } else {
+        const zip = new JSZip();
+        for (const file of generated) {
+          zip.file(file.fileName, file.blob);
+        }
+        const zipBlob = await zip.generateAsync({ type: 'blob' });
+        downloadBlob(zipBlob, buildZipFileName());
       }
 
       setLoadingStage('success');
@@ -262,9 +294,9 @@ const DueSoonPage: React.FC = () => {
       case 'preparing':
         return `Sắp xuất${multi}...`;
       case 'aboutToExport':
-        return `Sắp ra${multi}...`;
+        return count > 1 ? `Sắp đóng gói ZIP ${count} phiếu...` : 'Sắp ra...';
       case 'success':
-        return count > 1 ? `Đã xuất ${count} phiếu` : 'Đã xuất ra';
+        return count > 1 ? `Đã xuất ${count} phiếu (ZIP)` : 'Đã xuất ra';
       default:
         return '';
     }
