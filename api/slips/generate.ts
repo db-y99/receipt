@@ -736,18 +736,24 @@ export async function drawStandardSlipPdf(
   y += 7;
   setFont(pdf, useUnicode, 'italic', 10);
   rgb(pdf, COLOR.gray700);
-  const official1 =
-    'Mọi khoản thanh toán chỉ được chuyển vào tài khoản chính thức của Y99.';
-  const official2 = 'Y99 không công nhận thanh toán vào bất kỳ tài khoản cá nhân nào.';
-  pdf.text(official1, PAGE_W / 2, y, { align: 'center', maxWidth: 120 });
-  y += 4.5;
-  pdf.text(official2, PAGE_W / 2, y, { align: 'center', maxWidth: 120 });
-  y += 5.5;
-  const tip =
-    'Quý khách hàng khi chuyển khoản vui lòng quét mã QR bên dưới để hệ thống tự động điền thông tin chính xác!';
-  const tipLines = pdf.splitTextToSize(tip, 120) as string[];
-  pdf.text(tipLines, PAGE_W / 2, y, { align: 'center' });
-  y += tipLines.length * 4.3 + 3;
+  const noticeW = Math.min(innerW, 155);
+  const noticeLineH = 5;
+  const drawCenteredWrapped = (text: string, extraGap = 0) => {
+    const lines = pdf.splitTextToSize(text, noticeW) as string[];
+    pdf.text(lines, PAGE_W / 2, y, { align: 'center' });
+    y += lines.length * noticeLineH + extraGap;
+  };
+  drawCenteredWrapped(
+    'Mọi khoản thanh toán chỉ được chuyển vào tài khoản chính thức của Y99.'
+  );
+  drawCenteredWrapped(
+    'Y99 không công nhận thanh toán vào bất kỳ tài khoản cá nhân nào.',
+    1.5
+  );
+  drawCenteredWrapped(
+    'Quý khách hàng khi chuyển khoản vui lòng quét mã QR bên dưới để hệ thống tự động điền thông tin chính xác!',
+    3
+  );
 
   const qrSize = 53;
   const qrX = (PAGE_W - qrSize) / 2;
