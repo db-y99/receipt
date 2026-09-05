@@ -4,5 +4,11 @@
       "source": "/((?!api/).*)",
       "destination": "/index.html"
     }
-  ]
+  ],
+  "functions": {
+    "api/slips/generate.ts": {
+      "includeFiles": "logo.png",
+      "maxDuration": 60
+    }
+  }
 }

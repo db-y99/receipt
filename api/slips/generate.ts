@@ -4,6 +4,8 @@
  * that crash is FUNCTION_INVOCATION_FAILED (HTTP 500).
  * Same pattern as api/loans/due-soon.ts.
  */
+import { existsSync, readFileSync } from 'fs';
+import { join } from 'path';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { jsPDF } from 'jspdf';
 
@@ -54,7 +56,19 @@ type SlipLoanRecord = {
   fee_next_amount?: number | string;
 };
 
-let fontCache: { regular?: string; bold?: string } = {};
+let fontCache: { regular?: string; bold?: string; italic?: string } = {};
+let italicReady = false;
+let logoDataUrl: string | null | undefined;
+
+const LOGO_ASPECT = 563 / 1000;
+const COLOR = {
+  black: [0, 0, 0] as const,
+  gray700: [55, 65, 81] as const,
+  gray300: [209, 213, 219] as const,
+  red700: [185, 28, 28] as const,
+  red600: [220, 38, 38] as const,
+  blue500: [59, 130, 246] as const,
+};
 
 function getApiKey(req: VercelRequest): string {
   const header = req.headers['x-api-key'];
@@ -295,25 +309,127 @@ function isPng(buf: Buffer): boolean {
   );
 }
 
-function buildVietQrImageUrl(customer: SlipCustomerData): string {
-  const bank = encodeURIComponent(SLIP_COMPANY.bankId);
-  const account = encodeURIComponent(SLIP_COMPANY.bankAccountNumber);
-  const params = new URLSearchParams();
-  if (customer.amount > 0) params.set('amount', String(Math.round(customer.amount)));
-  if (customer.transferContent) params.set('addInfo', customer.transferContent);
-  params.set('accountName', SLIP_COMPANY.bankAccountName);
-  return `https://img.vietqr.io/image/${bank}-${account}-compact2.png?${params.toString()}`;
+function tryReadLogo(filePath: string): string | null {
+  try {
+    if (!existsSync(filePath)) return null;
+    const buf = readFileSync(filePath);
+    if (!isPng(buf)) return null;
+    return `data:image/png;base64,${buf.toString('base64')}`;
+  } catch {
+    return null;
+  }
 }
 
-async function fetchVietQrPng(customer: SlipCustomerData): Promise<Buffer | null> {
+async function loadLogoDataUrl(): Promise<string | null> {
+  if (logoDataUrl !== undefined) return logoDataUrl;
+  const local = [
+    join(process.cwd(), 'logo.png'),
+    join(process.cwd(), 'public', 'logo.png'),
+    join(process.cwd(), 'receipt', 'logo.png'),
+  ];
+  for (const filePath of local) {
+    const data = tryReadLogo(filePath);
+    if (data) {
+      logoDataUrl = data;
+      return data;
+    }
+  }
   try {
-    const res = await fetch(buildVietQrImageUrl(customer));
+    const res = await fetch('https://payment.y99.info/logo.png');
+    if (res.ok) {
+      const buf = Buffer.from(await res.arrayBuffer());
+      if (isPng(buf)) {
+        logoDataUrl = `data:image/png;base64,${buf.toString('base64')}`;
+        return logoDataUrl;
+      }
+    }
+  } catch {
+    // keep going
+  }
+  logoDataUrl = null;
+  return null;
+}
+
+function crc16(data: string): string {
+  let crc = 0xffff;
+  for (let i = 0; i < data.length; i += 1) {
+    crc ^= data.charCodeAt(i) << 8;
+    for (let j = 0; j < 8; j += 1) {
+      crc = (crc & 0x8000) !== 0 ? (crc << 1) ^ 0x1021 : crc << 1;
+    }
+  }
+  return (crc & 0xffff).toString(16).toUpperCase().padStart(4, '0');
+}
+
+function formatTlv(id: string, value: string): string {
+  return `${id}${value.length.toString().padStart(2, '0')}${value}`;
+}
+
+function generateVietQrPayload(customer: SlipCustomerData): string {
+  const accountNo = SLIP_COMPANY.bankAccountNumber;
+  if (!accountNo) return '';
+  const amount = customer.amount > 0 ? Math.round(customer.amount) : 0;
+  const content = (customer.transferContent || '').trim();
+  const pfi = formatTlv('00', '01');
+  const method = formatTlv('01', amount || content ? '12' : '11');
+  const guid = formatTlv('00', 'A000000727');
+  const merchant = formatTlv(
+    '38',
+    guid +
+      formatTlv('01', formatTlv('00', '970436') + formatTlv('01', accountNo)) +
+      formatTlv('02', 'QRIBFTTA')
+  );
+  const currency = formatTlv('53', '704');
+  const amountStr = amount ? formatTlv('54', String(amount)) : '';
+  const country = formatTlv('58', 'VN');
+  let additional = '';
+  if (content) {
+    additional = formatTlv('62', formatTlv('08', content.slice(0, 95)));
+  }
+  const raw = `${pfi}${method}${merchant}${currency}${amountStr}${country}${additional}6304`;
+  return `${raw}${crc16(raw)}`;
+}
+
+async function fetchPlainQrPng(payload: string): Promise<Buffer | null> {
+  if (!payload) return null;
+  try {
+    const url = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&ecc=M&margin=8&format=png&data=${encodeURIComponent(payload)}`;
+    const res = await fetch(url);
     if (!res.ok) return null;
     const buf = Buffer.from(await res.arrayBuffer());
     return isPng(buf) ? buf : null;
   } catch {
     return null;
   }
+}
+
+function buildVietQrImageUrl(
+  customer: SlipCustomerData,
+  template: 'qr_only' | 'compact2'
+): string {
+  const bank = encodeURIComponent(SLIP_COMPANY.bankId);
+  const account = encodeURIComponent(SLIP_COMPANY.bankAccountNumber);
+  const params = new URLSearchParams();
+  if (customer.amount > 0) params.set('amount', String(Math.round(customer.amount)));
+  if (customer.transferContent) params.set('addInfo', customer.transferContent);
+  params.set('accountName', SLIP_COMPANY.bankAccountName);
+  return `https://img.vietqr.io/image/${bank}-${account}-${template}.png?${params.toString()}`;
+}
+
+async function fetchVietQrPng(customer: SlipCustomerData): Promise<Buffer | null> {
+  const plain = await fetchPlainQrPng(generateVietQrPayload(customer));
+  if (plain) return plain;
+  for (const template of ['qr_only', 'compact2'] as const) {
+    try {
+      const res = await fetch(buildVietQrImageUrl(customer, template));
+      if (!res.ok) continue;
+      const buf = Buffer.from(await res.arrayBuffer());
+      if (isPng(buf)) return buf;
+    } catch {
+      // try next template
+    }
+  }
+  return null;
 }
 
 async function loadFontBase64(url: string): Promise<string> {
@@ -323,23 +439,31 @@ async function loadFontBase64(url: string): Promise<string> {
 }
 
 async function ensureFonts(pdf: jsPDF): Promise<boolean> {
+  const base = 'https://cdn.jsdelivr.net/npm/dejavu-fonts-ttf@2.37.3/ttf';
   try {
     if (!fontCache.regular) {
-      fontCache.regular = await loadFontBase64(
-        'https://cdn.jsdelivr.net/npm/dejavu-fonts-ttf@2.37.3/ttf/DejaVuSans.ttf'
-      );
+      fontCache.regular = await loadFontBase64(`${base}/DejaVuSerif.ttf`);
     }
     if (!fontCache.bold) {
-      fontCache.bold = await loadFontBase64(
-        'https://cdn.jsdelivr.net/npm/dejavu-fonts-ttf@2.37.3/ttf/DejaVuSans-Bold.ttf'
-      );
+      fontCache.bold = await loadFontBase64(`${base}/DejaVuSerif-Bold.ttf`);
     }
-    pdf.addFileToVFS('DejaVuSans.ttf', fontCache.regular);
-    pdf.addFont('DejaVuSans.ttf', 'DejaVu', 'normal');
-    pdf.addFileToVFS('DejaVuSans-Bold.ttf', fontCache.bold);
-    pdf.addFont('DejaVuSans-Bold.ttf', 'DejaVu', 'bold');
+    pdf.addFileToVFS('DejaVuSerif.ttf', fontCache.regular);
+    pdf.addFont('DejaVuSerif.ttf', 'DejaVu', 'normal');
+    pdf.addFileToVFS('DejaVuSerif-Bold.ttf', fontCache.bold);
+    pdf.addFont('DejaVuSerif-Bold.ttf', 'DejaVu', 'bold');
+    try {
+      if (!fontCache.italic) {
+        fontCache.italic = await loadFontBase64(`${base}/DejaVuSerif-Italic.ttf`);
+      }
+      pdf.addFileToVFS('DejaVuSerif-Italic.ttf', fontCache.italic);
+      pdf.addFont('DejaVuSerif-Italic.ttf', 'DejaVu', 'italic');
+      italicReady = true;
+    } catch {
+      italicReady = false;
+    }
     return true;
   } catch {
+    italicReady = false;
     return false;
   }
 }
@@ -358,21 +482,93 @@ function formatSlipDate(dateString: string): string {
   return `Ngày ${dd} tháng ${mm} năm ${date.getFullYear()}`;
 }
 
+type FontStyle = 'normal' | 'bold' | 'italic';
+
 function setFont(
   pdf: jsPDF,
   useUnicode: boolean,
-  style: 'normal' | 'bold',
+  style: FontStyle,
   size: number
 ) {
   if (useUnicode) {
-    pdf.setFont('DejaVu', style);
+    const resolved =
+      style === 'italic' && !italicReady ? 'normal' : style;
+    pdf.setFont('DejaVu', resolved);
   } else {
-    pdf.setFont('helvetica', style === 'bold' ? 'bold' : 'normal');
+    pdf.setFont(
+      'times',
+      style === 'bold' ? 'bold' : style === 'italic' ? 'italic' : 'normal'
+    );
   }
   pdf.setFontSize(size);
 }
 
-async function drawStandardSlipPdf(customer: SlipCustomerData): Promise<Buffer> {
+function rgb(pdf: jsPDF, color: readonly [number, number, number]) {
+  pdf.setTextColor(color[0], color[1], color[2]);
+}
+
+function makeOpacityState(opacity: number) {
+  const Ctor = (
+    jsPDF as unknown as {
+      GState?: new (params: { opacity: number }) => object;
+    }
+  ).GState;
+  if (typeof Ctor === 'function') return new Ctor({ opacity });
+  return { opacity };
+}
+
+function drawWatermark(pdf: jsPDF, logo: string) {
+  try {
+    pdf.saveGraphicsState();
+    pdf.setGState(makeOpacityState(0.04) as never);
+    const wmW = 32;
+    const wmH = wmW * LOGO_ASPECT;
+    for (let x = -18; x < PAGE_W + 10; x += 40) {
+      for (let yWm = -8; yWm < PAGE_H + 10; yWm += 30) {
+        pdf.addImage(logo, 'PNG', x, yWm, wmW, wmH, 'y99logo', 'FAST', -45);
+      }
+    }
+    pdf.restoreGraphicsState();
+  } catch {
+    pdf.restoreGraphicsState();
+  }
+}
+
+function drawCenteredLabelValue(
+  pdf: jsPDF,
+  useUnicode: boolean,
+  label: string,
+  value: string,
+  y: number,
+  maxWidth: number
+): number {
+  const labelStr = `${label} `;
+  setFont(pdf, useUnicode, 'bold', 10);
+  const labelW = pdf.getTextWidth(labelStr);
+  setFont(pdf, useUnicode, 'bold', 10);
+  const valueLines = pdf.splitTextToSize(value, Math.max(40, maxWidth - labelW)) as string[];
+  const first = valueLines[0] || '';
+  const firstW = pdf.getTextWidth(first);
+  const startX = (PAGE_W - labelW - firstW) / 2;
+  rgb(pdf, COLOR.red700);
+  setFont(pdf, useUnicode, 'bold', 10);
+  pdf.text(labelStr, startX, y);
+  rgb(pdf, COLOR.black);
+  pdf.text(first, startX + labelW, y);
+  let nextY = y + 4.3;
+  for (let i = 1; i < valueLines.length; i += 1) {
+    const line = valueLines[i];
+    const lineW = pdf.getTextWidth(line);
+    pdf.text(line, (PAGE_W - lineW) / 2, nextY);
+    nextY += 4.3;
+  }
+  return nextY;
+}
+
+/** Match SlipPreview STANDARD layout used by receipt web download. */
+export async function drawStandardSlipPdf(
+  customer: SlipCustomerData
+): Promise<Buffer> {
   const pdf = new jsPDF({
     orientation: 'portrait',
     unit: 'mm',
@@ -381,102 +577,183 @@ async function drawStandardSlipPdf(customer: SlipCustomerData): Promise<Buffer> 
   });
 
   const useUnicode = await ensureFonts(pdf);
+  const logo = await loadLogoDataUrl();
   const company = SLIP_COMPANY;
+  const innerW = PAGE_W - MARGIN * 2;
   let y = MARGIN;
 
-  pdf.setTextColor(0, 0, 0);
-  setFont(pdf, useUnicode, 'bold', 12);
-  pdf.text(company.name.trim(), MARGIN, y);
-  y += 6;
-  setFont(pdf, useUnicode, 'normal', 9);
-  pdf.setTextColor(60, 60, 60);
-  const addrLines = pdf.splitTextToSize(company.address, PAGE_W - MARGIN * 2 - 30);
-  pdf.text(addrLines, MARGIN, y);
-  y += addrLines.length * 4.5 + 8;
+  if (logo) {
+    drawWatermark(pdf, logo);
+    const logoW = 21;
+    const logoH = logoW * LOGO_ASPECT;
+    pdf.addImage(
+      logo,
+      'PNG',
+      PAGE_W - MARGIN - logoW,
+      MARGIN - 1,
+      logoW,
+      logoH,
+      'y99logo-header',
+      'FAST'
+    );
+  }
 
-  pdf.setTextColor(0, 0, 0);
-  setFont(pdf, useUnicode, 'bold', 16);
+  rgb(pdf, COLOR.black);
+  setFont(pdf, useUnicode, 'bold', 14);
+  const nameLines = pdf.splitTextToSize(
+    company.name.trim(),
+    innerW - 24
+  ) as string[];
+  pdf.text(nameLines, MARGIN, y);
+  y += nameLines.length * 5.5 + 1;
+
+  rgb(pdf, COLOR.gray700);
+  setFont(pdf, useUnicode, 'italic', 10);
+  const addrLines = pdf.splitTextToSize(company.address, innerW - 24) as string[];
+  pdf.text(addrLines, MARGIN, y);
+  y += addrLines.length * 4.5 + 7;
+
+  rgb(pdf, COLOR.black);
+  setFont(pdf, useUnicode, 'bold', 18);
   pdf.text('PHIẾU THU TIỀN', PAGE_W / 2, y, { align: 'center' });
   y += 7;
-  setFont(pdf, useUnicode, 'normal', 11);
+  setFont(pdf, useUnicode, 'italic', 12);
   pdf.text(formatSlipDate(customer.deadline), PAGE_W / 2, y, { align: 'center' });
   y += 10;
 
-  const labelW = 48;
+  const rowLabels = [
+    'Họ tên khách hàng:',
+    'Mã số hợp đồng:',
+    'Địa chỉ:',
+    'Tổng tiền thanh toán:',
+  ];
+  setFont(pdf, useUnicode, 'bold', 12);
+  const labelW =
+    Math.max(...rowLabels.map((label) => pdf.getTextWidth(label))) + 3;
+
   const drawRow = (label: string, value: string) => {
-    setFont(pdf, useUnicode, 'bold', 10);
+    rgb(pdf, COLOR.black);
+    setFont(pdf, useUnicode, 'bold', 12);
     pdf.text(label, MARGIN, y);
-    setFont(pdf, useUnicode, 'normal', 10);
-    const lines = pdf.splitTextToSize(value || '—', PAGE_W - MARGIN * 2 - labelW);
+    setFont(pdf, useUnicode, 'normal', 12);
+    const lines = pdf.splitTextToSize(
+      value || '—',
+      innerW - labelW
+    ) as string[];
     pdf.text(lines, MARGIN + labelW, y);
-    y += Math.max(6, lines.length * 5);
+    y += Math.max(6.5, lines.length * 5.2);
   };
 
   drawRow('Họ tên khách hàng:', customer.fullName);
   drawRow('Mã số hợp đồng:', customer.contractId);
   drawRow('Địa chỉ:', customer.address);
+  y += 1;
 
-  setFont(pdf, useUnicode, 'bold', 10);
-  pdf.text('Tổng tiền thanh toán:', MARGIN, y);
-  pdf.setTextColor(153, 0, 0);
   setFont(pdf, useUnicode, 'bold', 12);
+  pdf.text('Tổng tiền thanh toán:', MARGIN, y);
+  rgb(pdf, COLOR.red700);
+  setFont(pdf, useUnicode, 'bold', 14);
   pdf.text(formatMoney(customer.amount), MARGIN + labelW, y);
-  pdf.setTextColor(0, 0, 0);
+  rgb(pdf, COLOR.black);
   y += 7;
 
-  setFont(pdf, useUnicode, 'normal', 9);
   const breakdown: string[] = [];
-  if (customer.principal > 0) breakdown.push(`- Gốc: ${formatMoney(customer.principal, 'VNĐ')}`);
-  if (customer.interest > 0) breakdown.push(`- Lãi: ${formatMoney(customer.interest, 'VNĐ')}`);
+  if (customer.principal > 0) {
+    breakdown.push(`- Gốc: ${formatMoney(customer.principal, 'VNĐ')}`);
+  }
+  if (customer.interest > 0) {
+    breakdown.push(`- Lãi: ${formatMoney(customer.interest, 'VNĐ')}`);
+  }
   if (customer.managementFee > 0) {
     breakdown.push(`- Phí QL: ${formatMoney(customer.managementFee, 'VNĐ')}`);
   }
-  for (const line of breakdown) {
-    pdf.text(line, MARGIN + 4, y);
-    y += 4.5;
+  if (breakdown.length > 0) {
+    setFont(pdf, useUnicode, 'normal', 10);
+    const colW = innerW / 3;
+    breakdown.forEach((line, index) => {
+      const col = index % 3;
+      const row = Math.floor(index / 3);
+      pdf.text(line, MARGIN + col * colW, y + row * 4.6);
+    });
+    y += Math.ceil(breakdown.length / 3) * 4.6 + 4;
+  } else {
+    y += 3;
   }
-  y += 4;
 
+  const boxPad = 3.5;
   const boxTop = y;
-  const boxPad = 4;
-  y += boxPad + 2;
-  setFont(pdf, useUnicode, 'bold', 10);
-  pdf.text('Nộp tiền vào tài khoản sau:', MARGIN + boxPad, y);
-  y += 6;
-  setFont(pdf, useUnicode, 'normal', 9);
-  pdf.text(`Tên ngân hàng: ${company.bankName}`, MARGIN + boxPad, y);
-  y += 5;
-  pdf.text(`Tên chủ tài khoản: ${company.bankAccountName}`, MARGIN + boxPad, y);
-  y += 5;
-  pdf.text(`Số tài khoản: ${company.bankAccountNumber}`, MARGIN + boxPad, y);
-  y += 6;
-  pdf.setTextColor(180, 0, 0);
-  setFont(pdf, useUnicode, 'bold', 9);
-  pdf.text('Nội dung chuyển khoản (Bắt buộc):', MARGIN + boxPad, y);
-  y += 5;
+  y += boxPad + 3;
   setFont(pdf, useUnicode, 'bold', 11);
+  const boxTitle = 'Nộp tiền vào tài khoản sau:';
+  pdf.text(boxTitle, MARGIN + boxPad, y);
+  const titleW = pdf.getTextWidth(boxTitle);
+  pdf.setDrawColor(0, 0, 0);
+  pdf.setLineWidth(0.25);
+  pdf.line(MARGIN + boxPad, y + 1.2, MARGIN + boxPad + titleW, y + 1.2);
+  y += 6;
+
+  const bankLabelW = 38;
+  const drawBankRow = (label: string, value: string) => {
+    rgb(pdf, COLOR.black);
+    setFont(pdf, useUnicode, 'bold', 10);
+    pdf.text(label, MARGIN + boxPad, y);
+    setFont(pdf, useUnicode, 'normal', 10);
+    const lines = pdf.splitTextToSize(
+      value,
+      innerW - boxPad * 2 - bankLabelW
+    ) as string[];
+    pdf.text(lines, MARGIN + boxPad + bankLabelW, y);
+    y += Math.max(5, lines.length * 4.5);
+  };
+  drawBankRow('Tên ngân hàng:', company.bankName);
+  drawBankRow('Tên chủ tài khoản:', company.bankAccountName);
+  drawBankRow('Số tài khoản:', company.bankAccountNumber);
+  y += 1.5;
+
+  pdf.setDrawColor(COLOR.gray300[0], COLOR.gray300[1], COLOR.gray300[2]);
+  pdf.setLineWidth(0.3);
+  pdf.setLineDashPattern([1.2, 1.2], 0);
+  pdf.line(MARGIN + boxPad, y, PAGE_W - MARGIN - boxPad, y);
+  pdf.setLineDashPattern([], 0);
+  y += 5;
+
+  rgb(pdf, COLOR.red600);
+  setFont(pdf, useUnicode, 'bold', 10);
+  pdf.text('Nội dung chuyển khoản (Bắt buộc):', MARGIN + boxPad, y);
+  y += 5.5;
+  setFont(pdf, useUnicode, 'bold', 13);
   const transferLines = pdf.splitTextToSize(
     customer.transferContent || '(Chưa có)',
-    PAGE_W - MARGIN * 2 - boxPad * 2
-  );
+    innerW - boxPad * 2
+  ) as string[];
   pdf.text(transferLines, MARGIN + boxPad, y);
-  y += transferLines.length * 5 + boxPad;
-  pdf.setTextColor(0, 0, 0);
+  y += transferLines.length * 5.2 + boxPad;
+  rgb(pdf, COLOR.black);
   pdf.setDrawColor(0, 0, 0);
-  pdf.setLineWidth(0.6);
-  pdf.rect(MARGIN, boxTop, PAGE_W - MARGIN * 2, y - boxTop);
+  pdf.setLineWidth(0.5);
+  pdf.rect(MARGIN, boxTop, innerW, y - boxTop);
 
-  y += 8;
-  setFont(pdf, useUnicode, 'normal', 9);
-  pdf.setTextColor(40, 40, 40);
+  y += 7;
+  setFont(pdf, useUnicode, 'italic', 10);
+  rgb(pdf, COLOR.gray700);
+  const official1 =
+    'Mọi khoản thanh toán chỉ được chuyển vào tài khoản chính thức của Y99.';
+  const official2 = 'Y99 không công nhận thanh toán vào bất kỳ tài khoản cá nhân nào.';
+  pdf.text(official1, PAGE_W / 2, y, { align: 'center', maxWidth: 120 });
+  y += 4.5;
+  pdf.text(official2, PAGE_W / 2, y, { align: 'center', maxWidth: 120 });
+  y += 5.5;
   const tip =
     'Quý khách hàng khi chuyển khoản vui lòng quét mã QR bên dưới để hệ thống tự động điền thông tin chính xác!';
-  const tipLines = pdf.splitTextToSize(tip, PAGE_W - MARGIN * 2 - 10);
+  const tipLines = pdf.splitTextToSize(tip, 120) as string[];
   pdf.text(tipLines, PAGE_W / 2, y, { align: 'center' });
-  y += tipLines.length * 4.5 + 4;
+  y += tipLines.length * 4.3 + 3;
 
-  const qrSize = 48;
+  const qrSize = 53;
   const qrX = (PAGE_W - qrSize) / 2;
+  pdf.setDrawColor(COLOR.blue500[0], COLOR.blue500[1], COLOR.blue500[2]);
+  pdf.setLineWidth(0.55);
+  pdf.rect(qrX - 0.8, y - 0.8, qrSize + 1.6, qrSize + 1.6);
   const qrPng = await fetchVietQrPng(customer);
   let qrDrawn = false;
   if (qrPng) {
@@ -495,41 +772,62 @@ async function drawStandardSlipPdf(customer: SlipCustomerData): Promise<Buffer> 
     }
   }
   if (!qrDrawn) {
-    pdf.setDrawColor(0, 100, 200);
-    pdf.rect(qrX, y, qrSize, qrSize);
+    rgb(pdf, COLOR.gray700);
     setFont(pdf, useUnicode, 'normal', 8);
     pdf.text('QR không tải được', PAGE_W / 2, y + qrSize / 2, { align: 'center' });
   }
-  y += qrSize + 6;
+  y += qrSize + 5;
 
-  pdf.setTextColor(180, 0, 0);
-  setFont(pdf, useUnicode, 'bold', 9);
-  const meta = [
-    `Số tiền: ${formatMoney(customer.amount)}`,
-    `Nội dung: ${customer.transferContent || '(Chưa có)'}`,
-    `Tên chủ TK: ${company.bankAccountName}`,
-    `Số TK: ${company.bankAccountNumber}`,
-    company.bankName,
-  ];
-  for (const line of meta) {
-    const lines = pdf.splitTextToSize(line, PAGE_W - MARGIN * 2);
-    pdf.text(lines, PAGE_W / 2, y, { align: 'center' });
-    y += lines.length * 4.2;
-  }
+  y = drawCenteredLabelValue(
+    pdf,
+    useUnicode,
+    'Số tiền:',
+    formatMoney(customer.amount),
+    y,
+    innerW
+  );
+  y = drawCenteredLabelValue(
+    pdf,
+    useUnicode,
+    'Nội dung:',
+    customer.transferContent || '(Chưa có nội dung)',
+    y,
+    innerW
+  );
+  y = drawCenteredLabelValue(
+    pdf,
+    useUnicode,
+    'Tên chủ TK:',
+    company.bankAccountName,
+    y,
+    innerW
+  );
+  y = drawCenteredLabelValue(
+    pdf,
+    useUnicode,
+    'Số TK:',
+    company.bankAccountNumber,
+    y,
+    innerW
+  );
+  rgb(pdf, COLOR.red700);
+  setFont(pdf, useUnicode, 'bold', 10);
+  pdf.text(company.bankName, PAGE_W / 2, y, { align: 'center' });
+  y += 8;
 
-  y = Math.max(y + 6, PAGE_H - 40);
+  y = Math.max(y, PAGE_H - 38);
   pdf.setDrawColor(0, 0, 0);
   pdf.setLineWidth(0.5);
   pdf.line(MARGIN, y, PAGE_W - MARGIN, y);
   y += 6;
-  pdf.setTextColor(180, 0, 0);
-  setFont(pdf, useUnicode, 'bold', 8);
-  const note = `Lưu ý: ${company.name.trim()} sẽ không hoàn lại khoản tiền đã đóng với bất kỳ lý do gì. Quý khách vui lòng kiểm tra đầy đủ thông tin số tiền và nội dung chuyển khoản. Mọi chi tiết xin liên hệ Bộ phận Chăm sóc khách hàng.`;
-  const noteLines = pdf.splitTextToSize(note, PAGE_W - MARGIN * 2);
-  pdf.text(noteLines, MARGIN, y);
-  y += noteLines.length * 3.8 + 4;
-  pdf.setTextColor(0, 0, 0);
+  rgb(pdf, COLOR.red700);
   setFont(pdf, useUnicode, 'bold', 9);
+  const note = `Lưu ý: ${company.name.trim()} sẽ không hoàn lại khoản tiền đã đóng với bất kỳ lý do gì. Quý khách vui lòng kiểm tra đầy đủ thông tin số tiền và nội dung chuyển khoản. Mọi chi tiết xin liên hệ Bộ phận Chăm sóc khách hàng giải đáp thắc mắc.`;
+  const noteLines = pdf.splitTextToSize(note, innerW) as string[];
+  pdf.text(noteLines, MARGIN, y);
+  y += noteLines.length * 3.9 + 4;
+  rgb(pdf, COLOR.black);
+  setFont(pdf, useUnicode, 'bold', 10);
   pdf.text(`Hotline: ${company.hotline}`, PAGE_W / 2, y, { align: 'center' });
 
   return Buffer.from(pdf.output('arraybuffer'));
