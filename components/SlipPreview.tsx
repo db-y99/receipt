@@ -380,6 +380,11 @@ export const SlipPreview: React.FC<SlipPreviewProps> = ({ customer, company, id 
       </div>
 
       <div className="relative z-10 mt-auto">
+        <p className="text-center italic mb-1 text-sm max-w-lg mx-auto leading-tight break-words">
+          Mọi khoản thanh toán chỉ được chuyển vào tài khoản chính thức của Y99.
+          <br />
+          Y99 không công nhận thanh toán vào bất kỳ tài khoản cá nhân nào.
+        </p>
         <p className="text-center italic mb-2 text-sm max-w-lg mx-auto leading-tight break-words">
           Quý khách hàng khi chuyển khoản vui lòng quét mã QR bên dưới để hệ thống tự động điền thông tin chính xác!
         </p>
