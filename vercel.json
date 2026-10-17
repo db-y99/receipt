@@ -9,6 +9,15 @@
     "api/slips/generate.ts": {
       "includeFiles": "logo.png",
       "maxDuration": 60
+    },
+    "api/auth/*.ts": {
+      "includeFiles": "api/lib/auth.js"
+    },
+    "api/applications/search.ts": {
+      "includeFiles": "api/lib/auth.js"
+    },
+    "api/loans/due-soon.ts": {
+      "includeFiles": "api/lib/auth.js"
     }
   }
 }

@@ -1,9 +1,9 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { receiptAccess } from '../lib/auth.ts';
+import { receiptAccess } from '../lib/auth.js';
 
 /**
- * Vercel Node ESM cannot resolve extensionless imports like ../lib/foo.
- * The receipt access check uses an explicit .ts import.
+ * Vercel compiles this file to .js and then loads ../lib/auth.js.
+ * Do not import a .ts helper here; that file is missing at runtime.
  * Shared builders for Vite live in server/loanDueSoonParams.ts.
  */
 const LOAN_DUE_SOON_FIELDS = [

@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { receiptAccess } from '../lib/auth.ts';
+import { receiptAccess } from '../lib/auth.js';
 
 const APPLICATION_FIELDS = ['id', 'fullname', 'customer__code', 'code', 'phone', 'address'] as const;
 const APPLICATION_SEARCH_LIMIT = 15;

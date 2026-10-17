@@ -1,22 +1,8 @@
 import { createClient } from '@supabase/supabase-js';
 
-export type LoginUser = {
-  id: number;
-  username?: string;
-  fullname?: string;
-  display_name?: string;
-  blocked?: boolean | number;
-  block_reason?: string | null;
-  block_reason__name?: string | null;
-  password?: unknown;
-  [key: string]: unknown;
-};
 
-export type AuthResponse = {
-  status: number;
-  body: Record<string, unknown>;
-  setCookie?: string;
-};
+
+
 
 const COOKIE_NAME = 'user_id';
 const MAX_AGE = 30 * 24 * 60 * 60;
@@ -29,11 +15,11 @@ const USER_VALUES =
 
 const SESSION_VALUES = 'id,username,fullname,display_name,blocked,block_reason,block_reason__name';
 
-function isProduction(): boolean {
+function isProduction() {
   return process.env.NODE_ENV === 'production';
 }
 
-export function sessionCookie(userId: string): string {
+export function sessionCookie(userId) {
   const prod = isProduction();
   const parts = [
     `${COOKIE_NAME}=${encodeURIComponent(userId)}`,
@@ -46,7 +32,7 @@ export function sessionCookie(userId: string): string {
   return parts.join('; ');
 }
 
-export function clearSessionCookie(): string {
+export function clearSessionCookie() {
   const prod = isProduction();
   const parts = [
     `${COOKIE_NAME}=`,
@@ -59,7 +45,7 @@ export function clearSessionCookie(): string {
   return parts.join('; ');
 }
 
-export function readUserIdFromHeader(header: string | string[] | undefined): string | null {
+export function readUserIdFromHeader(header) {
   const raw = Array.isArray(header) ? header.join('; ') : header;
   if (!raw) return null;
 
@@ -78,39 +64,39 @@ export function readUserIdFromHeader(header: string | string[] | undefined): str
   return null;
 }
 
-function invalidCredentials(): AuthResponse {
+function invalidCredentials() {
   return {
     status: 401,
     body: { success: false, error: 'Email hoặc mật khẩu không đúng' },
   };
 }
 
-function extractUser(data: unknown): LoginUser | null {
+function extractUser(data) {
   if (!data || typeof data !== 'object') return null;
-  const rows = (data as { rows?: unknown }).rows;
+  const rows = data.rows;
   if (Array.isArray(rows)) {
-    return (rows[0] as LoginUser) ?? null;
+    return (rows[0]) ?? null;
   }
-  if (rows && typeof rows === 'object' && 'id' in (rows as object)) {
-    return rows as LoginUser;
+  if (rows && typeof rows === 'object' && 'id' in (rows)) {
+    return rows;
   }
-  if ('id' in (data as object) && !('rows' in (data as object))) {
-    return data as LoginUser;
+  if ('id' in (data) && !('rows' in (data))) {
+    return data;
   }
   return null;
 }
 
-function publicUser(user: LoginUser): LoginUser {
+function publicUser(user) {
   const safe = { ...user };
   delete safe.password;
   return safe;
 }
 
-function isBlocked(user: LoginUser): boolean {
+function isBlocked(user) {
   return user.blocked === 1 || user.blocked === true;
 }
 
-function blockedResponse(user: LoginUser): AuthResponse {
+function blockedResponse(user) {
   const reason = user.block_reason__name || user.block_reason;
   const text =
     typeof reason === 'string' && reason.trim() ? reason.trim() : 'Tài khoản đã bị khóa';
@@ -125,90 +111,9 @@ function blockedResponse(user: LoginUser): AuthResponse {
   };
 }
 
-type PasswordLoginResult =
-  | { status: 'ok'; user: LoginUser }
-  | { status: 'credentials' }
-  | { status: 'upstream'; detail: string };
 
-/** Password-verified login. Empty HTTP 200 body means wrong password. */
-async function loginWithPassword(
-  apiBase: string,
-  email: string,
-  password: string,
-): Promise<PasswordLoginResult> {
-  const filter = JSON.stringify({ username: email, password });
-  const url = `${apiBase.replace(/\/$/, '')}/login/?values=${LOGIN_VALUES}&filter=${encodeURIComponent(filter)}`;
 
-  const response = await fetch(url);
-  const text = await response.text();
-
-  if (!text) {
-    if (response.ok) return { status: 'credentials' };
-    return { status: 'upstream', detail: `empty body HTTP ${response.status}` };
-  }
-
-  let data: unknown;
-  try {
-    data = JSON.parse(text);
-  } catch {
-    return { status: 'upstream', detail: `non-JSON HTTP ${response.status}` };
-  }
-
-  const user = extractUser(data);
-  if (!user?.id) return { status: 'credentials' };
-  return { status: 'ok', user: publicUser(user) };
-}
-
-/** Username lookup when /login/ is down. Password is not verified on this path. */
-async function lookupUserByUsername(apiBase: string, email: string): Promise<LoginUser | null> {
-  const filter = JSON.stringify({ username: email });
-  const url = `${apiBase.replace(/\/$/, '')}/data/User/?values=${USER_VALUES}&filter=${encodeURIComponent(filter)}`;
-
-  const response = await fetch(url);
-  const text = await response.text();
-  if (!response.ok || !text) return null;
-
-  try {
-    const user = extractUser(JSON.parse(text));
-    return user?.id ? publicUser(user) : null;
-  } catch {
-    return null;
-  }
-}
-
-async function lookupUserById(apiBase: string, userId: string): Promise<LoginUser | null | 'error'> {
-  const idNum = Number(userId);
-  if (!Number.isFinite(idNum)) return null;
-
-  const filter = JSON.stringify({ id: idNum });
-  const url = `${apiBase.replace(/\/$/, '')}/data/User/?values=${SESSION_VALUES}&filter=${encodeURIComponent(filter)}`;
-
-  try {
-    const response = await fetch(url);
-    const text = await response.text();
-    if (!response.ok || !text) return 'error';
-    const user = extractUser(JSON.parse(text));
-    return user?.id ? publicUser(user) : null;
-  } catch {
-    return 'error';
-  }
-}
-
-export const RECEIPT_VIEW_PERMISSION = 'receipt:view';
-
-type Access = { ok: true } | { ok: false; status: number; error: string };
-
-type ProfileRow = {
-  id: number;
-  deleted_at: string | null;
-  role_id: string | null;
-  roles: { code?: string } | { code?: string }[] | null;
-};
-
-export function decideProfileAccess(
-  existing: { deleted_at: string | null } | null,
-  lookupFailed: boolean,
-): Access {
+export function decideProfileAccess(existing, lookupFailed) {
   if (lookupFailed) {
     return { ok: false, status: 500, error: 'Không kiểm tra được hồ sơ. Thử lại sau.' };
   }
@@ -222,10 +127,7 @@ export function decideProfileAccess(
 }
 
 /** Admin vào được. Role khác cần quyền receipt:view trên LoanLook /permissions. */
-export function decideReceiptPermission(
-  roleCode: string | null,
-  permissionCodes: readonly string[],
-): Access {
+export function decideReceiptPermission(roleCode, permissionCodes) {
   if (roleCode === 'admin') return { ok: true };
   if (permissionCodes.includes('*') || permissionCodes.includes(RECEIPT_VIEW_PERMISSION)) {
     return { ok: true };
@@ -237,31 +139,30 @@ export function decideReceiptPermission(
   };
 }
 
-function roleCodeOf(roles: ProfileRow['roles']): string | null {
+function roleCodeOf(roles) {
   const row = Array.isArray(roles) ? roles[0] : roles;
   return typeof row?.code === 'string' && row.code ? row.code : null;
 }
 
-function permissionCodesOf(rows: unknown): string[] {
+function permissionCodesOf(rows) {
   if (!Array.isArray(rows)) return [];
-  const codes: string[] = [];
+  const codes = [];
   for (const row of rows) {
-    const permissions = (row as { permissions?: { code?: string } | { code?: string }[] | null })
-      .permissions;
+    const permissions = row.permissions;
     const permission = Array.isArray(permissions) ? permissions[0] : permissions;
     if (typeof permission?.code === 'string' && permission.code) codes.push(permission.code);
   }
   return codes;
 }
 
-function supabaseSettings(): { url: string; key: string } | null {
+function supabaseSettings() {
   const url = (process.env.SUPABASE_URL || '').trim();
   const key = (process.env.SUPABASE_ANON_KEY || '').trim();
   if (!url || !key) return null;
   return { url, key };
 }
 
-async function profileAccess(userId: string): Promise<Access> {
+async function profileAccess(userId) {
   const settings = supabaseSettings();
   if (!settings) {
     return { ok: false, status: 500, error: 'Chưa cấu hình phân quyền' };
@@ -283,7 +184,7 @@ async function profileAccess(userId: string): Promise<Access> {
       .maybeSingle();
 
     if (error) console.error('[Login] profile lookup failed');
-    const profile = (data as ProfileRow | null) ?? null;
+    const profile = (data) ?? null;
     const gate = decideProfileAccess(profile, Boolean(error));
     if (!gate.ok || !profile) return gate;
 
@@ -309,11 +210,11 @@ async function profileAccess(userId: string): Promise<Access> {
 }
 
 /** Cookie session may open receipt pages and data APIs. */
-export async function receiptAccess(userId: string): Promise<Access> {
+export async function receiptAccess(userId) {
   return profileAccess(userId);
 }
 
-function rejectProfile(status: number, error: string, clearCookie: boolean): AuthResponse {
+function rejectProfile(status, error, clearCookie) {
   return {
     status,
     body: { success: false, error },
@@ -321,7 +222,7 @@ function rejectProfile(status: number, error: string, clearCookie: boolean): Aut
   };
 }
 
-async function enforceProfile(userId: string, mode: 'login' | 'me'): Promise<AuthResponse | null> {
+async function enforceProfile(userId, mode) {
   const gate = await profileAccess(userId);
   if (!('status' in gate)) return null;
 
@@ -333,13 +234,10 @@ async function enforceProfile(userId: string, mode: 'login' | 'me'): Promise<Aut
   return rejectProfile(401, gate.error, true);
 }
 
-function readCredentials(rawBody: unknown): { email: string; password: string } | null {
-  let body: { email?: unknown; password?: unknown };
+function readCredentials(rawBody) {
+  let body;
   try {
-    body =
-      typeof rawBody === 'string'
-        ? (JSON.parse(rawBody) as { email?: unknown; password?: unknown })
-        : ((rawBody ?? {}) as { email?: unknown; password?: unknown });
+    body = typeof rawBody === 'string' ? JSON.parse(rawBody) : (rawBody ?? {});
   } catch {
     return null;
   }
@@ -350,7 +248,7 @@ function readCredentials(rawBody: unknown): { email: string; password: string } 
   return { email, password };
 }
 
-export async function loginRequest(apiBase: string, rawBody: unknown): Promise<AuthResponse> {
+export async function loginRequest(apiBase, rawBody) {
   const credentials = readCredentials(rawBody);
   if (!credentials) {
     return {
@@ -368,7 +266,7 @@ export async function loginRequest(apiBase: string, rawBody: unknown): Promise<A
 
   try {
     const loginResult = await loginWithPassword(apiBase, credentials.email, credentials.password);
-    let user: LoginUser | null = null;
+    let user = null;
 
     if (loginResult.status === 'ok') {
       user = loginResult.user;
@@ -403,9 +301,9 @@ export async function loginRequest(apiBase: string, rawBody: unknown): Promise<A
 }
 
 export async function meRequest(
-  apiBase: string,
-  cookieHeader: string | string[] | undefined,
-): Promise<AuthResponse> {
+  apiBase,
+  cookieHeader,
+) {
   const userId = readUserIdFromHeader(cookieHeader);
   if (!userId) {
     return { status: 401, body: { success: false, error: 'Not authenticated' } };
@@ -452,7 +350,7 @@ export async function meRequest(
   };
 }
 
-export function logoutRequest(): AuthResponse {
+export function logoutRequest() {
   return {
     status: 200,
     body: { success: true, message: 'Logged out successfully' },

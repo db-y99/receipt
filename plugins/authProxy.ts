@@ -1,6 +1,6 @@
 import type { IncomingMessage } from 'node:http';
 import type { Connect, Plugin } from 'vite';
-import { loginRequest, logoutRequest, meRequest } from '../api/lib/auth.ts';
+import { loginRequest, logoutRequest, meRequest } from '../api/lib/auth.js';
 
 function readBody(req: IncomingMessage): Promise<string> {
   return new Promise((resolve, reject) => {
