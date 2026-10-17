@@ -190,7 +190,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   const access = await receiptAccess(userId);
-  if (!access.ok) {
+  if ('status' in access) {
     return res.status(access.status).json({ error: access.error });
   }
 

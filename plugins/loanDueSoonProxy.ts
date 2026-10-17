@@ -25,7 +25,7 @@ function createDueSoonHandler(apiBaseUrl: string): Connect.NextHandleFunction {
     }
 
     const access = await receiptAccess(userId);
-    if (!access.ok) {
+    if ('status' in access) {
       res.statusCode = access.status;
       res.setHeader('Content-Type', 'application/json');
       res.end(JSON.stringify({ error: access.error }));
