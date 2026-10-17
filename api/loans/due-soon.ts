@@ -1,8 +1,9 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { receiptAccess } from '../lib/auth.ts';
 
 /**
- * Keep this handler self-contained (no relative ESM imports).
  * Vercel Node ESM cannot resolve extensionless imports like ../lib/foo.
+ * The receipt access check uses an explicit .ts import.
  * Shared builders for Vite live in api/lib/loanDueSoonParams.ts.
  */
 const LOAN_DUE_SOON_FIELDS = [
@@ -137,6 +138,29 @@ const LOAN_DUE_SOON_DISTINCT_VALUES = {
   },
 };
 
+function sessionUserId(req: VercelRequest): string | null {
+  const fromCookie = req.cookies?.user_id;
+  if (typeof fromCookie === 'string' && fromCookie.trim()) return fromCookie.trim();
+
+  const header = req.headers.cookie;
+  const raw = Array.isArray(header) ? header.join('; ') : header;
+  if (!raw) return null;
+
+  for (const part of raw.split(';')) {
+    const eq = part.indexOf('=');
+    if (eq === -1) continue;
+    if (part.slice(0, eq).trim() !== 'user_id') continue;
+    try {
+      const value = decodeURIComponent(part.slice(eq + 1).trim());
+      return value || null;
+    } catch {
+      return null;
+    }
+  }
+
+  return null;
+}
+
 function buildLoanDueSoonUrl(apiBaseUrl: string, login?: string): string {
   const params = new URLSearchParams({
     values: LOAN_DUE_SOON_FIELDS.join(','),
@@ -159,14 +183,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   const apiBaseUrl = process.env.API_BASE_URL || '';
-  const apiLogin = process.env.API_LOGIN || '';
+  const userId = sessionUserId(req);
+
+  if (!userId) {
+    return res.status(401).json({ error: 'Not authenticated' });
+  }
+
+  const access = await receiptAccess(userId);
+  if (!access.ok) {
+    return res.status(access.status).json({ error: access.error });
+  }
 
   if (!apiBaseUrl) {
     return res.status(503).json({ error: 'Chưa cấu hình API tìm kiếm' });
   }
 
   try {
-    const targetUrl = buildLoanDueSoonUrl(apiBaseUrl, apiLogin);
+    const targetUrl = buildLoanDueSoonUrl(apiBaseUrl, userId);
     const response = await fetch(targetUrl);
 
     if (!response.ok) {

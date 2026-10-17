@@ -116,8 +116,8 @@ function parseCustomerData(body: unknown): SlipCustomerData | null {
 }
 
 function contentDisposition(filename: string): string {
-  const ascii = filename.replace(/[^\x20-\x7E]/g, '_');
-  const encoded = encodeURIComponent(filename);
+  const ascii = sanitizeFileName(filename).replace(/"/g, "'");
+  const encoded = encodeURIComponent(ascii);
   return `attachment; filename="${ascii}"; filename*=UTF-8''${encoded}`;
 }
 
@@ -281,7 +281,18 @@ function buildPdfBaseName(data: SlipCustomerData): string {
 }
 
 function sanitizeFileName(name: string): string {
-  return name.replace(/[<>:"/\\|?*\u0000-\u001f]/g, '_').trim() || 'phieu-thu';
+  const extMatch = name.match(/(\.[A-Za-z0-9]{1,8})$/);
+  const ext = extMatch ? extMatch[1] : '';
+  const stem = ext ? name.slice(0, -ext.length) : name;
+  const safe =
+    removeVietnameseAccents(stem)
+      .replace(/[<>:"/\\|?*\u0000-\u001f]/g, '-')
+      .replace(/[^\x20-\x7E]/g, '')
+      .replace(/\s+/g, ' ')
+      .replace(/\s*-\s*/g, ' - ')
+      .trim()
+      .replace(/[.\s]+$/g, '') || 'phieu-thu';
+  return ext ? `${safe}${ext}` : safe;
 }
 
 function uniquePdfFileName(baseName: string, used: Set<string>): string {

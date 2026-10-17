@@ -160,7 +160,18 @@ export function buildPdfBaseName(data: SlipCustomerData): string {
 }
 
 export function sanitizeFileName(name: string): string {
-  return name.replace(/[<>:"/\\|?*\u0000-\u001f]/g, '_').trim() || 'phieu-thu';
+  const extMatch = name.match(/(\.[A-Za-z0-9]{1,8})$/);
+  const ext = extMatch ? extMatch[1] : '';
+  const stem = ext ? name.slice(0, -ext.length) : name;
+  const safe =
+    removeVietnameseAccents(stem)
+      .replace(/[<>:"/\\|?*\u0000-\u001f]/g, '-')
+      .replace(/[^\x20-\x7E]/g, '')
+      .replace(/\s+/g, ' ')
+      .replace(/\s*-\s*/g, ' - ')
+      .trim()
+      .replace(/[.\s]+$/g, '') || 'phieu-thu';
+  return ext ? `${safe}${ext}` : safe;
 }
 
 export function uniquePdfFileName(baseName: string, used: Set<string>): string {

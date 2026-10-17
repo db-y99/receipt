@@ -4,13 +4,13 @@ import { CustomerData, UpgradePackage } from './types';
 import { InputForm } from './components/InputForm';
 import { SlipPreview } from './components/SlipPreview';
 import { UpgradePackageSelector } from './components/UpgradePackage';
-import { Printer, Download, CheckCircle2, Zap, CalendarClock } from 'lucide-react'; // TODO: Note - CheckCircle2 để sau này xóa
+import { Printer, Download, CheckCircle2, Zap } from 'lucide-react'; // TODO: Note - CheckCircle2 để sau này xóa
+import AppNavbar from './components/AppNavbar';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import { getStoredPackage, getPackageInfo } from './upgradePackages';
 
 const loadingGif = new URL('./cat Mark loading.gif', import.meta.url).href;
-const logo = new URL('./logo.png', import.meta.url).href;
 
 type LoadingStage = 'idle' | 'spinning' | 'preparing' | 'aboutToExport' | 'success'; // TODO: Note - 'success' để sau này xóa
 
@@ -55,14 +55,22 @@ const App: React.FC = () => {
   };
 
   const sanitizeFileName = (name: string) => {
-    // Remove characters that are invalid for Windows/macOS filenames
-    // \ / : * ? " < > | plus newlines/tabs.
-    let safe = name.replace(/[\\/:*?"<>|\r\n\t]/g, '-');
-    // Collapse whitespace and dashes a bit
-    safe = safe.replace(/\s+/g, ' ').replace(/\s*-\s*/g, ' - ').trim();
-    // Windows also dislikes trailing dots/spaces
-    safe = safe.replace(/[.\s]+$/g, '');
-    return safe;
+    const extMatch = name.match(/(\.[A-Za-z0-9]{1,8})$/);
+    const ext = extMatch ? extMatch[1] : '';
+    const stem = ext ? name.slice(0, -ext.length) : name;
+    const safe =
+      stem
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/đ/g, 'd')
+        .replace(/Đ/g, 'D')
+        .replace(/[\\/:*?"<>|\r\n\t]/g, '-')
+        .replace(/[^\x20-\x7E]/g, '')
+        .replace(/\s+/g, ' ')
+        .replace(/\s*-\s*/g, ' - ')
+        .trim()
+        .replace(/[.\s]+$/g, '') || 'phieu-thu';
+    return ext ? `${safe}${ext}` : safe;
   };
 
   const ensurePdfExtension = (name: string) => {
@@ -270,112 +278,83 @@ const App: React.FC = () => {
         </div>
       )}
 
-      {/* Header Bar */}
-      <header className="bg-white text-gray-900 py-1 px-2 shadow-sm border-b border-gray-200 sticky top-0 z-50 print:hidden">
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-1">
-          <div className="flex items-center gap-1.5">
-            <img src={logo} alt="Y99 Logo" className="w-16 h-16 object-contain" />
-            <div>
-                <h1 className="text-xl font-bold">Y99 Generator</h1>
-                <p className="text-xs text-gray-500">Hệ thống tạo phiếu thu tự động</p>
-            </div>
-          </div>
-          
-          <div className="flex items-center gap-2 flex-wrap">
-            <a
-              href="/due-soon"
-              className="flex items-center gap-2 px-3 py-2 rounded-lg transition-colors text-sm font-medium border bg-emerald-50 border-emerald-300 text-emerald-800 hover:bg-emerald-100"
-              title="Trang tạo phiếu từ khoản vay đến hạn"
-            >
-              <CalendarClock className="w-4 h-4" />
-              <span className="hidden sm:inline">Đến hạn 3 ngày</span>
-            </a>
-            <button
-              onClick={() => setShowUpgradeModal(true)}
-              className={`
-                flex items-center gap-2 px-3 py-2 rounded-lg transition-colors text-sm font-medium border
-                ${currentPackage === 'FREE' 
-                  ? 'bg-yellow-50 border-yellow-300 text-yellow-700 hover:bg-yellow-100' 
-                  : currentPackage === 'BASIC'
-                  ? 'bg-blue-50 border-blue-300 text-blue-700 hover:bg-blue-100'
-                  : currentPackage === 'PREMIUM'
-                  ? 'bg-purple-50 border-purple-300 text-purple-700 hover:bg-purple-100'
-                  : 'bg-yellow-50 border-yellow-400 text-yellow-800 hover:bg-yellow-100'
+      <AppNavbar
+        current="slip"
+        toolbar={
+          <>
+            <label htmlFor="pdf-filename" className="sr-only">
+              Tên file
+            </label>
+            <input
+              ref={fileNameInputRef}
+              id="pdf-filename"
+              type="text"
+              value={pdfFileName}
+              onChange={(e) => {
+                const newValue = e.target.value;
+                setPdfFileName(newValue);
+                const expectedAutoFileName = buildAutoPdfBaseName(customerData);
+                setIsFileNameManuallyEdited(newValue !== expectedAutoFileName);
+              }}
+              onBlur={() => {
+                const expectedAutoFileName = buildAutoPdfBaseName(customerData);
+                if (pdfFileName === expectedAutoFileName || !pdfFileName.trim()) {
+                  setIsFileNameManuallyEdited(false);
+                  if (!pdfFileName.trim()) setPdfFileName(expectedAutoFileName);
                 }
-              `}
-              title={`Gói hiện tại: ${getPackageInfo(currentPackage).name}`}
-            >
-              <Zap className="w-4 h-4" />
-              <span className="hidden sm:inline">
-                {currentPackage === 'FREE' ? 'Nâng cấp' : getPackageInfo(currentPackage).name}
-              </span>
-            </button>
-            <div className="flex items-center gap-2">
-              <label htmlFor="pdf-filename" className="text-sm text-gray-600 whitespace-nowrap">
-                Tên file:
-              </label>
-              <input
-                ref={fileNameInputRef}
-                id="pdf-filename"
-                type="text"
-                value={pdfFileName}
-                onChange={(e) => {
-                  const newValue = e.target.value;
-                  setPdfFileName(newValue);
-                  
-                  // Check if the new value matches the current auto-generated format
-                  const expectedAutoFileName = buildAutoPdfBaseName(customerData);
-                  
-                  // Mark as manually edited if it's different from auto format
-                  if (newValue !== expectedAutoFileName) {
-                    setIsFileNameManuallyEdited(true);
-                  } else {
-                    // If user types back to match auto format, reset flag to allow auto-update
-                    setIsFileNameManuallyEdited(false);
-                  }
-                }}
-                onBlur={() => {
-                  // When user leaves the input, check if it matches auto format
-                  const expectedAutoFileName = buildAutoPdfBaseName(customerData);
-                  
-                  if (pdfFileName === expectedAutoFileName || !pdfFileName.trim()) {
-                    setIsFileNameManuallyEdited(false);
-                    // Update to current format if empty
-                    if (!pdfFileName.trim()) setPdfFileName(expectedAutoFileName);
-                  }
-                }}
-                placeholder={
-                  buildAutoPdfBaseName(customerData) ||
-                  `${getSlipPrefix(customerData.type)} - Tên khách hàng ${formatDayMonthForFileName(getDateForFileName(customerData))}`
-                }
-                className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent w-80 sm:w-96 md:w-[420px]"
-                disabled={isExporting}
-              />
-            </div>
-            <button 
+              }}
+              placeholder={
+                buildAutoPdfBaseName(customerData) ||
+                `${getSlipPrefix(customerData.type)} - Tên khách hàng ${formatDayMonthForFileName(getDateForFileName(customerData))}`
+              }
+              className="h-7 w-52 rounded-md border border-gray-300 px-2 text-sm text-gray-900 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 sm:w-72"
+              disabled={isExporting}
+            />
+            <div className="flex shrink-0 flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setShowUpgradeModal(true)}
+                className={`inline-flex h-7 items-center gap-1 rounded-md border px-2 text-sm font-medium ${
+                  currentPackage === 'FREE'
+                    ? 'border-yellow-300 bg-yellow-50 text-yellow-800 hover:bg-yellow-100'
+                    : currentPackage === 'BASIC'
+                    ? 'border-blue-300 bg-blue-50 text-blue-800 hover:bg-blue-100'
+                    : currentPackage === 'PREMIUM'
+                    ? 'border-purple-300 bg-purple-50 text-purple-800 hover:bg-purple-100'
+                    : 'border-yellow-400 bg-yellow-50 text-yellow-900 hover:bg-yellow-100'
+                }`}
+                title={`Gói hiện tại: ${getPackageInfo(currentPackage).name}`}
+              >
+                <Zap className="h-3.5 w-3.5" />
+                <span>{currentPackage === 'FREE' ? 'Nâng cấp' : getPackageInfo(currentPackage).name}</span>
+              </button>
+              <button
+                type="button"
                 onClick={handlePrint}
-                className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-lg transition-colors text-sm font-medium border border-gray-300"
-            >
-                <Printer className="w-4 h-4" />
-                <span className="hidden sm:inline">In ngay</span>
-            </button>
-            <button 
+                className="inline-flex h-7 items-center gap-1 rounded-md border border-gray-300 bg-gray-100 px-2 text-sm font-medium text-gray-800 hover:bg-gray-200"
+              >
+                <Printer className="h-3.5 w-3.5" />
+                <span>In ngay</span>
+              </button>
+              <button
+                type="button"
                 onClick={handleDownloadPDF}
                 disabled={isExporting}
-                className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
-            >
+                className="inline-flex h-7 items-center gap-1 rounded-md bg-blue-600 px-2 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+              >
                 {isExporting ? (
-                    <span className="animate-pulse">Đang tạo...</span>
+                  <span className="animate-pulse">Đang tạo...</span>
                 ) : (
-                    <>
-                        <Download className="w-4 h-4" />
-                        <span>Xuất PDF</span>
-                    </>
+                  <>
+                    <Download className="h-3.5 w-3.5" />
+                    <span>Xuất PDF</span>
+                  </>
                 )}
-            </button>
-          </div>
-        </div>
-      </header>
+              </button>
+            </div>
+          </>
+        }
+      />
 
       {/* Main Content */}
       <main className="flex-1 bg-gray-50 p-4 md:p-8 print:p-0 print:bg-white">
@@ -399,7 +378,7 @@ const App: React.FC = () => {
 
           {/* Right Column: Preview (Full width on Print) */}
           <div className="lg:col-span-8 print:w-full" ref={previewContainerRef}>
-            <div className="sticky top-24 print:static">
+            <div className="sticky top-12 print:static">
                  <div className="mb-4 flex items-center justify-between lg:hidden print:hidden">
                     <span className="text-sm font-bold text-gray-500 uppercase tracking-wider">Xem trước (Khổ A4)</span>
                  </div>

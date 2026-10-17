@@ -1,13 +1,12 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import {
-  ArrowLeft,
-  CalendarClock,
   CheckCircle2,
   Download,
   Printer,
   X,
 } from 'lucide-react';
+import AppNavbar from './components/AppNavbar';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import JSZip from 'jszip';
@@ -19,7 +18,6 @@ import { getPackageInfo, getStoredPackage } from './upgradePackages';
 import { formatLoanAmount } from './services/loanService';
 
 const loadingGif = new URL('./cat Mark loading.gif', import.meta.url).href;
-const logo = new URL('./logo.png', import.meta.url).href;
 
 type LoadingStage = 'idle' | 'spinning' | 'preparing' | 'aboutToExport' | 'success';
 type PageStep = 'select' | 'queue';
@@ -64,12 +62,22 @@ function waitMs(ms: number): Promise<void> {
 }
 
 function sanitizeFileName(name: string): string {
-  return name
-    .replace(/[\\/:*?"<>|\r\n\t]/g, '-')
-    .replace(/\s+/g, ' ')
-    .replace(/\s*-\s*/g, ' - ')
-    .trim()
-    .replace(/[.\s]+$/g, '');
+  const extMatch = name.match(/(\.[A-Za-z0-9]{1,8})$/);
+  const ext = extMatch ? extMatch[1] : '';
+  const stem = ext ? name.slice(0, -ext.length) : name;
+  const safe =
+    stem
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/đ/g, 'd')
+      .replace(/Đ/g, 'D')
+      .replace(/[\\/:*?"<>|\r\n\t]/g, '-')
+      .replace(/[^\x20-\x7E]/g, '')
+      .replace(/\s+/g, ' ')
+      .replace(/\s*-\s*/g, ' - ')
+      .trim()
+      .replace(/[.\s]+$/g, '') || 'phieu-thu';
+  return ext ? `${safe}${ext}` : safe;
 }
 
 function ensurePdfExtension(name: string): string {
@@ -326,30 +334,11 @@ const DueSoonPage: React.FC = () => {
         </div>
       )}
 
-      <header className="bg-white text-gray-900 py-2 px-3 shadow-sm border-b border-gray-200 shrink-0 z-50 print:hidden">
-        <div className="max-w-[1600px] mx-auto flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
-          <div className="flex items-center gap-2 min-w-0">
-            <a
-              href="/"
-              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-sm font-medium text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 shrink-0"
-            >
-              <ArrowLeft className="w-4 h-4" />
-              Phiếu thu
-            </a>
-            <img src={logo} alt="Y99 Logo" className="w-10 h-10 object-contain" />
-            <div className="min-w-0">
-              <h1 className="text-lg font-bold flex items-center gap-1.5 truncate">
-                <CalendarClock className="w-5 h-5 text-emerald-600 shrink-0" />
-                Đến hạn 3 ngày
-              </h1>
-              <p className="text-xs text-gray-500 truncate">
-                Tạo phiếu thu thường từ khoản vay đến hạn — tách riêng trang phiếu thu cũ
-              </p>
-            </div>
-          </div>
-
-          {step === 'queue' && currentSlip && (
-            <div className="flex items-center gap-2 flex-wrap">
+      <AppNavbar
+        current="due"
+        toolbar={
+          step === 'queue' && currentSlip ? (
+            <div className="ml-auto flex items-center gap-2">
               <button
                 type="button"
                 onClick={() => {
@@ -357,32 +346,32 @@ const DueSoonPage: React.FC = () => {
                   setSlipQueue([]);
                   setQueueIndex(0);
                 }}
-                className="px-3 py-2 text-sm font-medium text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50"
+                className="inline-flex h-7 items-center rounded-md border border-gray-300 px-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
               >
                 Chọn lại
               </button>
               <button
                 type="button"
                 onClick={() => window.print()}
-                className="flex items-center gap-2 px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-lg text-sm font-medium border border-gray-300"
+                className="inline-flex h-7 items-center gap-1 rounded-md border border-gray-300 bg-gray-100 px-2 text-sm font-medium text-gray-800 hover:bg-gray-200"
               >
-                <Printer className="w-4 h-4" />
+                <Printer className="h-3.5 w-3.5" />
                 In
               </button>
               <button
                 type="button"
                 onClick={() => void handleDownloadPDF()}
                 disabled={isExporting || slipQueue.length === 0}
-                className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-medium disabled:opacity-50"
+                className="inline-flex h-7 items-center gap-1 rounded-md bg-emerald-600 px-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
               >
-                <Download className="w-4 h-4" />
+                <Download className="h-3.5 w-3.5" />
                 Xuất PDF
                 {slipQueue.length > 1 ? ` (${slipQueue.length})` : ''}
               </button>
             </div>
-          )}
-        </div>
-      </header>
+          ) : undefined
+        }
+      />
 
       <main className="flex-1 min-h-0 p-2 md:p-3 print:p-0 flex flex-col overflow-hidden">
         <div className="w-full max-w-[1600px] mx-auto flex-1 min-h-0 flex flex-col print:block">
