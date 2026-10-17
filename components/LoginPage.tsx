@@ -47,7 +47,13 @@ const LoginPage: React.FC = () => {
       }
 
       if (!response.ok || !data.success || data.data?.id == null) {
-        setError(typeof data.error === 'string' ? data.error : 'Email hoặc mật khẩu không đúng.');
+        if (typeof data.error === 'string' && data.error) {
+          setError(data.error);
+        } else if (response.status >= 500) {
+          setError('Không đăng nhập được. Thử lại sau.');
+        } else {
+          setError('Email hoặc mật khẩu không đúng.');
+        }
         return;
       }
 
@@ -66,7 +72,7 @@ const LoginPage: React.FC = () => {
       navigate('/');
     } catch (submitError) {
       console.error('Login Error:', submitError);
-      setError('Email hoặc mật khẩu không đúng.');
+      setError('Không kết nối được máy chủ. Thử lại sau.');
     } finally {
       setSubmitting(false);
     }

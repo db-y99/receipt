@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { receiptAccess } from '../../server/auth.ts';
+import { receiptAccess } from '../lib/auth.ts';
 
 /**
  * Vercel Node ESM cannot resolve extensionless imports like ../lib/foo.

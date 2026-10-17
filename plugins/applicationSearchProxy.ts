@@ -1,6 +1,6 @@
 import type { Connect, Plugin } from 'vite';
 import { buildApplicationSearchUrl } from '../server/applicationSearchParams';
-import { readUserIdFromHeader, receiptAccess } from '../server/auth.ts';
+import { readUserIdFromHeader, receiptAccess } from '../api/lib/auth.ts';
 
 function createSearchHandler(apiBaseUrl: string): Connect.NextHandleFunction {
   return async (req, res, next) => {

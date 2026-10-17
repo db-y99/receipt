@@ -1,5 +1,5 @@
 import type { Connect, Plugin } from 'vite';
-import { readUserIdFromHeader, receiptAccess } from '../server/auth.ts';
+import { readUserIdFromHeader, receiptAccess } from '../api/lib/auth.ts';
 import { buildLoanDueSoonUrl } from '../server/loanDueSoonParams';
 
 function createDueSoonHandler(apiBaseUrl: string): Connect.NextHandleFunction {
