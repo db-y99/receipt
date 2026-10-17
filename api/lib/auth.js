@@ -111,7 +111,67 @@ function blockedResponse(user) {
   };
 }
 
+/** Password-verified login. Empty HTTP 200 body means wrong password. */
+async function loginWithPassword(apiBase, email, password) {
+  const filter = JSON.stringify({ username: email, password });
+  const url = `${apiBase.replace(/\/$/, '')}/login/?values=${LOGIN_VALUES}&filter=${encodeURIComponent(filter)}`;
 
+  const response = await fetch(url);
+  const text = await response.text();
+
+  if (!text) {
+    if (response.ok) return { status: 'credentials' };
+    return { status: 'upstream', detail: `empty body HTTP ${response.status}` };
+  }
+
+  let data;
+  try {
+    data = JSON.parse(text);
+  } catch {
+    return { status: 'upstream', detail: `non-JSON HTTP ${response.status}` };
+  }
+
+  const user = extractUser(data);
+  if (!user?.id) return { status: 'credentials' };
+  return { status: 'ok', user: publicUser(user) };
+}
+
+/** Username lookup when /login/ is down. Password is not verified on this path. */
+async function lookupUserByUsername(apiBase, email) {
+  const filter = JSON.stringify({ username: email });
+  const url = `${apiBase.replace(/\/$/, '')}/data/User/?values=${USER_VALUES}&filter=${encodeURIComponent(filter)}`;
+
+  const response = await fetch(url);
+  const text = await response.text();
+  if (!response.ok || !text) return null;
+
+  try {
+    const user = extractUser(JSON.parse(text));
+    return user?.id ? publicUser(user) : null;
+  } catch {
+    return null;
+  }
+}
+
+async function lookupUserById(apiBase, userId) {
+  const idNum = Number(userId);
+  if (!Number.isFinite(idNum)) return null;
+
+  const filter = JSON.stringify({ id: idNum });
+  const url = `${apiBase.replace(/\/$/, '')}/data/User/?values=${SESSION_VALUES}&filter=${encodeURIComponent(filter)}`;
+
+  try {
+    const response = await fetch(url);
+    const text = await response.text();
+    if (!response.ok || !text) return 'error';
+    const user = extractUser(JSON.parse(text));
+    return user?.id ? publicUser(user) : null;
+  } catch {
+    return 'error';
+  }
+}
+
+export const RECEIPT_VIEW_PERMISSION = 'receipt:view';
 
 export function decideProfileAccess(existing, lookupFailed) {
   if (lookupFailed) {
