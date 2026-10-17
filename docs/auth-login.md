@@ -41,7 +41,7 @@ Field form tên email, backend lọc theo `User.username`.
 
 Cookie: `HttpOnly`, `Path=/`, `Max-Age` 30 ngày, `SameSite=Strict` khi production và `Lax` khi dev, `Secure` khi production.
 
-Dev (`vite`) phục vụ `/api/auth/*` bằng [plugins/authProxy.ts](../plugins/authProxy.ts). Production là hàm Vercel `api/auth/login.ts`, `me.ts`, `logout.ts`. Cả hai gọi [api/lib/auth.ts](../api/lib/auth.ts).
+Dev (`vite`) phục vụ `/api/auth/*` bằng [plugins/authProxy.ts](../plugins/authProxy.ts). Production là hàm Vercel `api/auth/login.ts`, `me.ts`, `logout.ts`. Cả hai gọi [server/auth.ts](../server/auth.ts). Helper nằm ngoài `api/` để Vercel Hobby không tính chúng thành serverless function.
 
 ## Trang
 

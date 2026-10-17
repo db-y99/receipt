@@ -107,7 +107,7 @@ Không gọi thẳng `api.y99.vn` từ browser (giữ `API_LOGIN` bí mật).
 ### 4.1 Build URL upstream
 
 ```ts
-// api/lib/loanDueSoonParams.ts
+// server/loanDueSoonParams.ts
 export const LOAN_DUE_SOON_FILTER = {
   deleted: 0,
   status__gte: "2",
@@ -352,7 +352,7 @@ Bỏ dấu, không ngăn nghìn, ≤ **95** ký tự.
 | Company default       | `constants.ts`                                        |
 | Due-soon UI           | `DueSoonPage.tsx`, `components/DueSoonLoansPanel.tsx` |
 | Fetch + map           | `services/loanService.ts`                             |
-| Filter + URL upstream | `api/lib/loanDueSoonParams.ts`                        |
+| Filter + URL upstream | `server/loanDueSoonParams.ts`                         |
 | API prod              | `api/loans/due-soon.ts`                               |
 | Proxy dev             | `plugins/loanDueSoonProxy.ts`                         |
 | Preview               | `components/SlipPreview.tsx`                          |
