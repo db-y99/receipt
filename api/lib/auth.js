@@ -1,56 +1,53 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient } from "@supabase/supabase-js";
 
-
-
-
-
-const COOKIE_NAME = 'user_id';
+const COOKIE_NAME = "user_id";
 const MAX_AGE = 30 * 24 * 60 * 60;
 
 const LOGIN_VALUES =
-  'id,username,password,avatar,fullname,display_name,type__code,type__name,blocked,block_reason,block_reason__code,block_reason__name';
+  "id,username,password,avatar,fullname,display_name,type__code,type__name,blocked,block_reason,block_reason__code,block_reason__name";
 
 const USER_VALUES =
-  'id,username,avatar,fullname,display_name,type__code,type__name,blocked,block_reason,block_reason__code,block_reason__name';
+  "id,username,avatar,fullname,display_name,type__code,type__name,blocked,block_reason,block_reason__code,block_reason__name";
 
-const SESSION_VALUES = 'id,username,fullname,display_name,blocked,block_reason,block_reason__name';
+const SESSION_VALUES =
+  "id,username,fullname,display_name,blocked,block_reason,block_reason__name";
 
 function isProduction() {
-  return process.env.NODE_ENV === 'production';
+  return process.env.NODE_ENV === "production";
 }
 
 export function sessionCookie(userId) {
   const prod = isProduction();
   const parts = [
     `${COOKIE_NAME}=${encodeURIComponent(userId)}`,
-    'HttpOnly',
-    'Path=/',
+    "HttpOnly",
+    "Path=/",
     `Max-Age=${MAX_AGE}`,
-    `SameSite=${prod ? 'Strict' : 'Lax'}`,
+    `SameSite=${prod ? "Strict" : "Lax"}`,
   ];
-  if (prod) parts.push('Secure');
-  return parts.join('; ');
+  if (prod) parts.push("Secure");
+  return parts.join("; ");
 }
 
 export function clearSessionCookie() {
   const prod = isProduction();
   const parts = [
     `${COOKIE_NAME}=`,
-    'HttpOnly',
-    'Path=/',
-    'Max-Age=0',
-    `SameSite=${prod ? 'Strict' : 'Lax'}`,
+    "HttpOnly",
+    "Path=/",
+    "Max-Age=0",
+    `SameSite=${prod ? "Strict" : "Lax"}`,
   ];
-  if (prod) parts.push('Secure');
-  return parts.join('; ');
+  if (prod) parts.push("Secure");
+  return parts.join("; ");
 }
 
 export function readUserIdFromHeader(header) {
-  const raw = Array.isArray(header) ? header.join('; ') : header;
+  const raw = Array.isArray(header) ? header.join("; ") : header;
   if (!raw) return null;
 
-  for (const part of raw.split(';')) {
-    const eq = part.indexOf('=');
+  for (const part of raw.split(";")) {
+    const eq = part.indexOf("=");
     if (eq === -1) continue;
     if (part.slice(0, eq).trim() !== COOKIE_NAME) continue;
     try {
@@ -67,20 +64,20 @@ export function readUserIdFromHeader(header) {
 function invalidCredentials() {
   return {
     status: 401,
-    body: { success: false, error: 'Email hoặc mật khẩu không đúng' },
+    body: { success: false, error: "Email hoặc mật khẩu không đúng" },
   };
 }
 
 function extractUser(data) {
-  if (!data || typeof data !== 'object') return null;
+  if (!data || typeof data !== "object") return null;
   const rows = data.rows;
   if (Array.isArray(rows)) {
-    return (rows[0]) ?? null;
+    return rows[0] ?? null;
   }
-  if (rows && typeof rows === 'object' && 'id' in (rows)) {
+  if (rows && typeof rows === "object" && "id" in rows) {
     return rows;
   }
-  if ('id' in (data) && !('rows' in (data))) {
+  if ("id" in data && !("rows" in data)) {
     return data;
   }
   return null;
@@ -99,7 +96,9 @@ function isBlocked(user) {
 function blockedResponse(user) {
   const reason = user.block_reason__name || user.block_reason;
   const text =
-    typeof reason === 'string' && reason.trim() ? reason.trim() : 'Tài khoản đã bị khóa';
+    typeof reason === "string" && reason.trim()
+      ? reason.trim()
+      : "Tài khoản đã bị khóa";
   return {
     status: 403,
     body: {
@@ -114,32 +113,32 @@ function blockedResponse(user) {
 /** Password-verified login. Empty HTTP 200 body means wrong password. */
 async function loginWithPassword(apiBase, email, password) {
   const filter = JSON.stringify({ username: email, password });
-  const url = `${apiBase.replace(/\/$/, '')}/login/?values=${LOGIN_VALUES}&filter=${encodeURIComponent(filter)}`;
+  const url = `${apiBase.replace(/\/$/, "")}/login/?values=${LOGIN_VALUES}&filter=${encodeURIComponent(filter)}`;
 
   const response = await fetch(url);
   const text = await response.text();
 
   if (!text) {
-    if (response.ok) return { status: 'credentials' };
-    return { status: 'upstream', detail: `empty body HTTP ${response.status}` };
+    if (response.ok) return { status: "credentials" };
+    return { status: "upstream", detail: `empty body HTTP ${response.status}` };
   }
 
   let data;
   try {
     data = JSON.parse(text);
   } catch {
-    return { status: 'upstream', detail: `non-JSON HTTP ${response.status}` };
+    return { status: "upstream", detail: `non-JSON HTTP ${response.status}` };
   }
 
   const user = extractUser(data);
-  if (!user?.id) return { status: 'credentials' };
-  return { status: 'ok', user: publicUser(user) };
+  if (!user?.id) return { status: "credentials" };
+  return { status: "ok", user: publicUser(user) };
 }
 
 /** Username lookup when /login/ is down. Password is not verified on this path. */
 async function lookupUserByUsername(apiBase, email) {
   const filter = JSON.stringify({ username: email });
-  const url = `${apiBase.replace(/\/$/, '')}/data/User/?values=${USER_VALUES}&filter=${encodeURIComponent(filter)}`;
+  const url = `${apiBase.replace(/\/$/, "")}/data/User/?values=${USER_VALUES}&filter=${encodeURIComponent(filter)}`;
 
   const response = await fetch(url);
   const text = await response.text();
@@ -158,50 +157,55 @@ async function lookupUserById(apiBase, userId) {
   if (!Number.isFinite(idNum)) return null;
 
   const filter = JSON.stringify({ id: idNum });
-  const url = `${apiBase.replace(/\/$/, '')}/data/User/?values=${SESSION_VALUES}&filter=${encodeURIComponent(filter)}`;
+  const url = `${apiBase.replace(/\/$/, "")}/data/User/?values=${SESSION_VALUES}&filter=${encodeURIComponent(filter)}`;
 
   try {
     const response = await fetch(url);
     const text = await response.text();
-    if (!response.ok || !text) return 'error';
+    if (!response.ok || !text) return "error";
     const user = extractUser(JSON.parse(text));
     return user?.id ? publicUser(user) : null;
   } catch {
-    return 'error';
+    return "error";
   }
 }
 
-export const RECEIPT_VIEW_PERMISSION = 'receipt:view';
+export const RECEIPT_VIEW_PERMISSION = "receipt:view";
 
 export function decideProfileAccess(existing, lookupFailed) {
   if (lookupFailed) {
-    return { ok: false, status: 500, error: 'Không kiểm tra được hồ sơ. Thử lại sau.' };
+    return {
+      ok: false,
+      status: 500,
+      error: "Không kiểm tra được hồ sơ. Thử lại sau.",
+    };
   }
   if (!existing) {
-    return { ok: false, status: 403, error: 'Tài khoản chưa có hồ sơ trên hệ thống.' };
+    return {
+      ok: false,
+      status: 403,
+      error: "Tài khoản chưa có hồ sơ trên hệ thống.",
+    };
   }
   if (existing.deleted_at) {
-    return { ok: false, status: 403, error: 'Tài khoản đã bị xóa.' };
+    return { ok: false, status: 403, error: "Tài khoản đã bị xóa." };
   }
   return { ok: true };
 }
 
-/** Admin vào được. Role khác cần quyền receipt:view trên LoanLook /permissions. */
-export function decideReceiptPermission(roleCode, permissionCodes) {
-  if (roleCode === 'admin') return { ok: true };
-  if (permissionCodes.includes('*') || permissionCodes.includes(RECEIPT_VIEW_PERMISSION)) {
+/** Mọi role, kể cả admin, cần quyền receipt:view trên LoanLook /permissions. */
+export function decideReceiptPermission(permissionCodes) {
+  if (
+    permissionCodes.includes("*") ||
+    permissionCodes.includes(RECEIPT_VIEW_PERMISSION)
+  ) {
     return { ok: true };
   }
   return {
     ok: false,
     status: 403,
-    error: 'Tài khoản không có quyền truy cập phiếu thu.',
+    error: "Tài khoản không có quyền truy cập phiếu thu.",
   };
-}
-
-function roleCodeOf(roles) {
-  const row = Array.isArray(roles) ? roles[0] : roles;
-  return typeof row?.code === 'string' && row.code ? row.code : null;
 }
 
 function permissionCodesOf(rows) {
@@ -209,15 +213,18 @@ function permissionCodesOf(rows) {
   const codes = [];
   for (const row of rows) {
     const permissions = row.permissions;
-    const permission = Array.isArray(permissions) ? permissions[0] : permissions;
-    if (typeof permission?.code === 'string' && permission.code) codes.push(permission.code);
+    const permission = Array.isArray(permissions)
+      ? permissions[0]
+      : permissions;
+    if (typeof permission?.code === "string" && permission.code)
+      codes.push(permission.code);
   }
   return codes;
 }
 
 function supabaseSettings() {
-  const url = (process.env.SUPABASE_URL || '').trim();
-  const key = (process.env.SUPABASE_ANON_KEY || '').trim();
+  const url = (process.env.SUPABASE_URL || "").trim();
+  const key = (process.env.SUPABASE_ANON_KEY || "").trim();
   if (!url || !key) return null;
   return { url, key };
 }
@@ -225,7 +232,7 @@ function supabaseSettings() {
 async function profileAccess(userId) {
   const settings = supabaseSettings();
   if (!settings) {
-    return { ok: false, status: 500, error: 'Chưa cấu hình phân quyền' };
+    return { ok: false, status: 500, error: "Chưa cấu hình phân quyền" };
   }
 
   const idNum = Number(userId);
@@ -235,36 +242,45 @@ async function profileAccess(userId) {
 
   try {
     const supabase = createClient(settings.url, settings.key, {
-      auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false,
+        detectSessionInUrl: false,
+      },
     });
     const { data, error } = await supabase
-      .from('profiles')
-      .select('id, deleted_at, role_id, roles:roles(code)')
-      .eq('id', idNum)
+      .from("profiles")
+      .select("id, deleted_at, role_id")
+      .eq("id", idNum)
       .maybeSingle();
 
-    if (error) console.error('[Login] profile lookup failed');
-    const profile = (data) ?? null;
+    if (error) console.error("[Login] profile lookup failed");
+    const profile = data ?? null;
     const gate = decideProfileAccess(profile, Boolean(error));
     if (!gate.ok || !profile) return gate;
 
-    const roleCode = roleCodeOf(profile.roles);
-    if (roleCode === 'admin') return { ok: true };
-    if (!profile.role_id) return decideReceiptPermission(roleCode, []);
+    if (!profile.role_id) return decideReceiptPermission([]);
 
     const { data: grants, error: grantError } = await supabase
-      .from('role_permissions')
-      .select('permissions:permission_id(code)')
-      .eq('role_id', profile.role_id);
+      .from("role_permissions")
+      .select("permissions:permission_id(code)")
+      .eq("role_id", profile.role_id);
 
     if (grantError) {
-      console.error('[Login] permission lookup failed');
-      return { ok: false, status: 500, error: 'Không kiểm tra được quyền. Thử lại sau.' };
+      console.error("[Login] permission lookup failed");
+      return {
+        ok: false,
+        status: 500,
+        error: "Không kiểm tra được quyền. Thử lại sau.",
+      };
     }
 
-    return decideReceiptPermission(roleCode, permissionCodesOf(grants));
+    return decideReceiptPermission(permissionCodesOf(grants));
   } catch (error) {
-    console.error('[Login] profile lookup error', error instanceof Error ? error.name : 'unknown');
+    console.error(
+      "[Login] profile lookup error",
+      error instanceof Error ? error.name : "unknown",
+    );
     return decideProfileAccess(null, true);
   }
 }
@@ -284,9 +300,9 @@ function rejectProfile(status, error, clearCookie) {
 
 async function enforceProfile(userId, mode) {
   const gate = await profileAccess(userId);
-  if (!('status' in gate)) return null;
+  if (!("status" in gate)) return null;
 
-  if (mode === 'login') return rejectProfile(gate.status, gate.error, true);
+  if (mode === "login") return rejectProfile(gate.status, gate.error, true);
 
   if (gate.status === 500) {
     return { status: 401, body: { success: false, error: gate.error } };
@@ -297,13 +313,13 @@ async function enforceProfile(userId, mode) {
 function readCredentials(rawBody) {
   let body;
   try {
-    body = typeof rawBody === 'string' ? JSON.parse(rawBody) : (rawBody ?? {});
+    body = typeof rawBody === "string" ? JSON.parse(rawBody) : (rawBody ?? {});
   } catch {
     return null;
   }
 
-  const email = typeof body.email === 'string' ? body.email.trim() : '';
-  const password = typeof body.password === 'string' ? body.password : '';
+  const email = typeof body.email === "string" ? body.email.trim() : "";
+  const password = typeof body.password === "string" ? body.password : "";
   if (!email || !password) return null;
   return { email, password };
 }
@@ -313,24 +329,28 @@ export async function loginRequest(apiBase, rawBody) {
   if (!credentials) {
     return {
       status: 400,
-      body: { success: false, error: 'Email và mật khẩu là bắt buộc' },
+      body: { success: false, error: "Email và mật khẩu là bắt buộc" },
     };
   }
 
   if (!apiBase.trim()) {
     return {
       status: 500,
-      body: { success: false, error: 'Chưa cấu hình API' },
+      body: { success: false, error: "Chưa cấu hình API" },
     };
   }
 
   try {
-    const loginResult = await loginWithPassword(apiBase, credentials.email, credentials.password);
+    const loginResult = await loginWithPassword(
+      apiBase,
+      credentials.email,
+      credentials.password,
+    );
     let user = null;
 
-    if (loginResult.status === 'ok') {
+    if (loginResult.status === "ok") {
       user = loginResult.user;
-    } else if (loginResult.status === 'credentials') {
+    } else if (loginResult.status === "credentials") {
       return invalidCredentials();
     } else {
       console.warn(
@@ -343,7 +363,7 @@ export async function loginRequest(apiBase, rawBody) {
     if (!user?.id) return invalidCredentials();
     if (isBlocked(user)) return blockedResponse(user);
 
-    const profileGate = await enforceProfile(String(user.id), 'login');
+    const profileGate = await enforceProfile(String(user.id), "login");
     if (profileGate) return profileGate;
 
     return {
@@ -352,29 +372,32 @@ export async function loginRequest(apiBase, rawBody) {
       setCookie: sessionCookie(String(user.id)),
     };
   } catch (error) {
-    console.error('Login API error', error instanceof Error ? error.name : 'unknown');
+    console.error(
+      "Login API error",
+      error instanceof Error ? error.name : "unknown",
+    );
     return {
       status: 500,
-      body: { success: false, error: 'Không đăng nhập được. Thử lại sau.' },
+      body: { success: false, error: "Không đăng nhập được. Thử lại sau." },
     };
   }
 }
 
-export async function meRequest(
-  apiBase,
-  cookieHeader,
-) {
+export async function meRequest(apiBase, cookieHeader) {
   const userId = readUserIdFromHeader(cookieHeader);
   if (!userId) {
-    return { status: 401, body: { success: false, error: 'Not authenticated' } };
+    return {
+      status: 401,
+      body: { success: false, error: "Not authenticated" },
+    };
   }
 
-  const profileGate = await enforceProfile(userId, 'me');
+  const profileGate = await enforceProfile(userId, "me");
   if (profileGate) return profileGate;
 
   if (apiBase.trim()) {
     const user = await lookupUserById(apiBase, userId);
-    if (user === 'error') {
+    if (user === "error") {
       return {
         status: 200,
         body: { success: true, data: { id: userId } },
@@ -383,7 +406,7 @@ export async function meRequest(
     if (!user) {
       return {
         status: 401,
-        body: { success: false, error: 'Not authenticated' },
+        body: { success: false, error: "Not authenticated" },
         setCookie: clearSessionCookie(),
       };
     }
@@ -413,7 +436,7 @@ export async function meRequest(
 export function logoutRequest() {
   return {
     status: 200,
-    body: { success: true, message: 'Logged out successfully' },
+    body: { success: true, message: "Logged out successfully" },
     setCookie: clearSessionCookie(),
   };
 }

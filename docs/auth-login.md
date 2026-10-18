@@ -1,6 +1,6 @@
 # Đăng nhập (Authentication)
 
-Người dùng đăng nhập bằng tài khoản Data API, giống bước xác thực mật khẩu của LoanLook. Session là cookie httpOnly `user_id`. Quyền vào app nằm trên Supabase: hồ sơ `profiles` cùng `id`, `deleted_at` null, và role `admin` hoặc quyền `receipt:view`. Gán quyền đó trên LoanLook `/permissions`, mục Phiếu thu. Không tự tạo hồ sơ mới.
+Người dùng đăng nhập bằng tài khoản Data API, giống bước xác thực mật khẩu của LoanLook. Session là cookie httpOnly `user_id`. Quyền vào app nằm trên Supabase: hồ sơ `profiles` cùng `id`, `deleted_at` null, và quyền `receipt:view` trên role của hồ sơ đó. Gán quyền đó trên LoanLook `/permissions`, mục Phiếu thu. Không tự tạo hồ sơ mới.
 
 ## Luồng
 
@@ -19,7 +19,7 @@ Không bị khóa?
 Supabase profiles: có dòng và deleted_at null?
   │  Không → 403, không gắn cookie
   ▼
-Role admin hoặc role_permissions có receipt:view?
+role_permissions có receipt:view?
   │  Không → 403, không gắn cookie
   ▼
 Set-Cookie user_id (httpOnly, 30 ngày)
@@ -33,11 +33,11 @@ Field form tên email, backend lọc theo `User.username`.
 
 ## API
 
-| Route | Việc |
-|-------|------|
-| `POST /api/auth/login` | Thiếu email/password → 400. Sai mật khẩu → 401. `blocked`, hồ sơ thiếu/đã xóa, hoặc không có `receipt:view` → 403, không gắn cookie. Thành công → cookie + `{ success, data }` (không trả `password`). |
-| `GET /api/auth/me` | Không cookie → 401. Hồ sơ thiếu, đã xóa, hoặc không có `receipt:view` → xóa cookie, 401. Bị khóa → xóa cookie, 403. OK → `{ id, username, fullname }`. |
-| `POST /api/auth/logout` | Xóa cookie. |
+| Route                   | Việc                                                                                                                                                                                                   |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `POST /api/auth/login`  | Thiếu email/password → 400. Sai mật khẩu → 401. `blocked`, hồ sơ thiếu/đã xóa, hoặc không có `receipt:view` → 403, không gắn cookie. Thành công → cookie + `{ success, data }` (không trả `password`). |
+| `GET /api/auth/me`      | Không cookie → 401. Hồ sơ thiếu, đã xóa, hoặc không có `receipt:view` → xóa cookie, 401. Bị khóa → xóa cookie, 403. OK → `{ id, username, fullname }`.                                                 |
+| `POST /api/auth/logout` | Xóa cookie.                                                                                                                                                                                            |
 
 Cookie: `HttpOnly`, `Path=/`, `Max-Age` 30 ngày, `SameSite=Strict` khi production và `Lax` khi dev, `Secure` khi production.
 
@@ -45,10 +45,10 @@ Dev (`vite`) phục vụ `/api/auth/*` bằng [plugins/authProxy.ts](../plugins/
 
 ## Trang
 
-| Path | Ai vào được |
-|------|-------------|
-| `/login` | Chưa đăng nhập. Đã có session thì về `/`. |
-| `/`, `/due-soon` | Phải có session và quyền `receipt:view` (role admin luôn được). Không có session thì về `/login`. |
+| Path             | Ai vào được                                                                                       |
+| ---------------- | ------------------------------------------------------------------------------------------------- |
+| `/login`         | Chưa đăng nhập. Đã có session thì về `/`.                                                         |
+| `/`, `/due-soon` | Phải có session và quyền `receipt:view` trên role của hồ sơ. Không có session thì về `/login`. |
 
 Header phiếu thu và trang đến hạn hiện tên user và nút Đăng xuất.
 
