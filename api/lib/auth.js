@@ -61,11 +61,15 @@ export function readUserIdFromHeader(header) {
   return null;
 }
 
+function httpResult(status, body, setCookie) {
+  return { status, body, setCookie };
+}
+
 function invalidCredentials() {
-  return {
-    status: 401,
-    body: { success: false, error: "Email hoặc mật khẩu không đúng" },
-  };
+  return httpResult(401, {
+    success: false,
+    error: "Email hoặc mật khẩu không đúng",
+  });
 }
 
 function extractUser(data) {
@@ -99,15 +103,12 @@ function blockedResponse(user) {
     typeof reason === "string" && reason.trim()
       ? reason.trim()
       : "Tài khoản đã bị khóa";
-  return {
-    status: 403,
-    body: {
-      success: false,
-      error: `Tài khoản đã bị khóa. Lý do: ${text}`,
-      blocked: true,
-      blockReason: text,
-    },
-  };
+  return httpResult(403, {
+    success: false,
+    error: `Tài khoản đã bị khóa. Lý do: ${text}`,
+    blocked: true,
+    blockReason: text,
+  });
 }
 
 /** Password-verified login. Empty HTTP 200 body means wrong password. */
@@ -291,11 +292,11 @@ export async function receiptAccess(userId) {
 }
 
 function rejectProfile(status, error, clearCookie) {
-  return {
+  return httpResult(
     status,
-    body: { success: false, error },
-    ...(clearCookie ? { setCookie: clearSessionCookie() } : {}),
-  };
+    { success: false, error },
+    clearCookie ? clearSessionCookie() : undefined,
+  );
 }
 
 async function enforceProfile(userId, mode) {
@@ -305,7 +306,7 @@ async function enforceProfile(userId, mode) {
   if (mode === "login") return rejectProfile(gate.status, gate.error, true);
 
   if (gate.status === 500) {
-    return { status: 401, body: { success: false, error: gate.error } };
+    return httpResult(401, { success: false, error: gate.error });
   }
   return rejectProfile(401, gate.error, true);
 }
@@ -327,17 +328,14 @@ function readCredentials(rawBody) {
 export async function loginRequest(apiBase, rawBody) {
   const credentials = readCredentials(rawBody);
   if (!credentials) {
-    return {
-      status: 400,
-      body: { success: false, error: "Email và mật khẩu là bắt buộc" },
-    };
+    return httpResult(400, {
+      success: false,
+      error: "Email và mật khẩu là bắt buộc",
+    });
   }
 
   if (!apiBase.trim()) {
-    return {
-      status: 500,
-      body: { success: false, error: "Chưa cấu hình API" },
-    };
+    return httpResult(500, { success: false, error: "Chưa cấu hình API" });
   }
 
   try {
@@ -366,30 +364,27 @@ export async function loginRequest(apiBase, rawBody) {
     const profileGate = await enforceProfile(String(user.id), "login");
     if (profileGate) return profileGate;
 
-    return {
-      status: 200,
-      body: { success: true, data: user },
-      setCookie: sessionCookie(String(user.id)),
-    };
+    return httpResult(
+      200,
+      { success: true, data: user },
+      sessionCookie(String(user.id)),
+    );
   } catch (error) {
     console.error(
       "Login API error",
       error instanceof Error ? error.name : "unknown",
     );
-    return {
-      status: 500,
-      body: { success: false, error: "Không đăng nhập được. Thử lại sau." },
-    };
+    return httpResult(500, {
+      success: false,
+      error: "Không đăng nhập được. Thử lại sau.",
+    });
   }
 }
 
 export async function meRequest(apiBase, cookieHeader) {
   const userId = readUserIdFromHeader(cookieHeader);
   if (!userId) {
-    return {
-      status: 401,
-      body: { success: false, error: "Not authenticated" },
-    };
+    return httpResult(401, { success: false, error: "Not authenticated" });
   }
 
   const profileGate = await enforceProfile(userId, "me");
@@ -398,45 +393,36 @@ export async function meRequest(apiBase, cookieHeader) {
   if (apiBase.trim()) {
     const user = await lookupUserById(apiBase, userId);
     if (user === "error") {
-      return {
-        status: 200,
-        body: { success: true, data: { id: userId } },
-      };
+      return httpResult(200, { success: true, data: { id: userId } });
     }
     if (!user) {
-      return {
-        status: 401,
-        body: { success: false, error: "Not authenticated" },
-        setCookie: clearSessionCookie(),
-      };
+      return httpResult(
+        401,
+        { success: false, error: "Not authenticated" },
+        clearSessionCookie(),
+      );
     }
     if (isBlocked(user)) {
       const blocked = blockedResponse(user);
-      return { ...blocked, setCookie: clearSessionCookie() };
+      return httpResult(blocked.status, blocked.body, clearSessionCookie());
     }
-    return {
-      status: 200,
-      body: {
-        success: true,
-        data: {
-          id: String(user.id),
-          username: user.username,
-          fullname: user.fullname || user.display_name,
-        },
+    return httpResult(200, {
+      success: true,
+      data: {
+        id: String(user.id),
+        username: user.username,
+        fullname: user.fullname || user.display_name,
       },
-    };
+    });
   }
 
-  return {
-    status: 200,
-    body: { success: true, data: { id: userId } },
-  };
+  return httpResult(200, { success: true, data: { id: userId } });
 }
 
 export function logoutRequest() {
-  return {
-    status: 200,
-    body: { success: true, message: "Logged out successfully" },
-    setCookie: clearSessionCookie(),
-  };
+  return httpResult(
+    200,
+    { success: true, message: "Logged out successfully" },
+    clearSessionCookie(),
+  );
 }
