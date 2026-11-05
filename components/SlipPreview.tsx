@@ -179,20 +179,32 @@ const CashSlipPanel: React.FC<CashSlipPanelProps> = ({ customer, company, blank 
 
       <div
         className="absolute text-xs leading-snug z-10"
-        style={{ left: '18mm', right: '18mm', bottom: '8mm' }}
+        style={{ left: '18mm', right: '18mm', bottom: blank ? '6mm' : '8mm' }}
       >
-        <p>
-          <span className="font-bold">Đã nhận đủ số tiền (bằng số):</span>{' '}
-          {blank ? (
-            <BlankLine width="140px" />
-          ) : (
-            <span className="font-semibold">{formatMoney(customer.amount, 'VNĐ')}</span>
-          )}
-        </p>
-        <p className="mt-1 italic break-words">
-          <span className="font-bold not-italic">(Bằng chữ):</span>{' '}
-          {blank ? <BlankLine width="280px" /> : amountToVietnameseWords(customer.amount)}
-        </p>
+        {blank ? (
+          <>
+            <p className="flex items-end gap-4">
+              <span className="font-bold shrink-0">Đã nhận đủ số tiền (bằng số):</span>
+              <BlankLine width="210px" />
+            </p>
+            <p className="flex items-end gap-4" style={{ marginTop: '8mm' }}>
+              <span className="font-bold shrink-0">(Bằng chữ):</span>
+              <span className="flex-1">
+                <BlankLine width="100%" />
+              </span>
+            </p>
+          </>
+        ) : (
+          <>
+            <p>
+              <span className="font-bold">Đã nhận đủ số tiền (bằng số):</span>{' '}
+              <span className="font-semibold">{formatMoney(customer.amount, 'VNĐ')}</span>
+            </p>
+            <p className="mt-1 italic break-words">
+              <span className="font-bold not-italic">(Bằng chữ):</span> {amountToVietnameseWords(customer.amount)}
+            </p>
+          </>
+        )}
       </div>
     </div>
   );
