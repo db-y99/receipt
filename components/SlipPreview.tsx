@@ -8,6 +8,8 @@ interface SlipPreviewProps {
   customer: CustomerData;
   company: CompanyInfo;
   id?: string;
+  /** Thêm trang phiếu trống (mẫu tiền mặt) sau phiếu thu thường. */
+  appendBlankCashPage?: boolean;
 }
 
 const formatDate = (dateString: string) => {
@@ -196,7 +198,18 @@ const CashSlipPanel: React.FC<CashSlipPanelProps> = ({ customer, company, blank 
   );
 };
 
-export const SlipPreview: React.FC<SlipPreviewProps> = ({ customer, company, id }) => {
+const CashSlipSheet: React.FC<CashSlipPanelProps> = ({ customer, company, blank = false }) => (
+  <div
+    className={`slip-page bg-white text-black font-serif-print relative flex flex-col ${blank ? 'slip-page-break' : ''}`}
+    style={{ width: '210mm', height: '297mm' }}
+  >
+    <CashSlipPanel customer={customer} company={company} blank={blank} />
+    <div className="h-0 shrink-0 border-t border-dashed border-gray-400" aria-hidden="true" />
+    <CashSlipPanel customer={customer} company={company} blank={blank} />
+  </div>
+);
+
+export const SlipPreview: React.FC<SlipPreviewProps> = ({ customer, company, id, appendBlankCashPage = false }) => {
   const qrRef = useRef<HTMLCanvasElement>(null);
 
   const qrString = customer.type === 'CASH' ? '' : generateVietQRString({
@@ -257,29 +270,18 @@ export const SlipPreview: React.FC<SlipPreviewProps> = ({ customer, company, id 
   const isCash = customer.type === 'CASH';
 
   if (isCash) {
-    const renderSheet = (blank: boolean) => (
-      <div
-        className={`slip-page bg-white text-black font-serif-print relative flex flex-col ${blank ? 'slip-page-break' : ''}`}
-        style={{ width: '210mm', height: '297mm' }}
-      >
-        <CashSlipPanel customer={customer} company={company} blank={blank} />
-        <div className="h-0 shrink-0 border-t border-dashed border-gray-400" aria-hidden="true" />
-        <CashSlipPanel customer={customer} company={company} blank={blank} />
-      </div>
-    );
-
     return (
       <div id={id} className="mx-auto print:shadow-none flex flex-col gap-4 print:gap-0" style={{ width: '210mm' }}>
-        {renderSheet(false)}
-        {renderSheet(true)}
+        <CashSlipSheet customer={customer} company={company} />
+        <CashSlipSheet customer={customer} company={company} blank />
       </div>
     );
   }
 
-  return (
+  const standardPage = (
     <div
-      id={id}
-      className="bg-white text-black font-serif-print mx-auto print:shadow-none relative flex flex-col justify-between"
+      id={appendBlankCashPage ? undefined : id}
+      className={`bg-white text-black font-serif-print print:shadow-none relative flex flex-col justify-between ${appendBlankCashPage ? 'slip-page' : 'mx-auto'}`}
       style={{ width: '210mm', minHeight: '297mm', padding: '20mm' }}
     >
       <div className="absolute inset-0 pointer-events-none z-0 overflow-hidden">
@@ -456,6 +458,15 @@ export const SlipPreview: React.FC<SlipPreviewProps> = ({ customer, company, id 
           <p className="font-bold text-center text-sm leading-tight mt-1.5 break-words">Hotline: {company.hotline}</p>
         </div>
       </div>
+    </div>
+  );
+
+  if (!appendBlankCashPage) return standardPage;
+
+  return (
+    <div id={id} className="mx-auto print:shadow-none flex flex-col gap-4 print:gap-0" style={{ width: '210mm' }}>
+      {standardPage}
+      <CashSlipSheet customer={customer} company={company} blank />
     </div>
   );
 };

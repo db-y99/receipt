@@ -186,7 +186,7 @@ const App: React.FC = () => {
             compress: true
         });
 
-        // Phiếu tiền mặt có 2 trang (.slip-page). Các loại phiếu khác là một trang.
+        // Phiếu thu thường và phiếu tiền mặt có trang phiếu trống (.slip-page). Phiếu tất toán là một trang.
         const pageEls = Array.from(input.querySelectorAll<HTMLElement>('.slip-page'));
         const targets = pageEls.length > 0 ? pageEls : [input];
 
@@ -375,6 +375,7 @@ const App: React.FC = () => {
                     <li>Nhập đầy đủ thông tin khách hàng.</li>
                     <li>Mã QR tự động cập nhật số tiền và nội dung.</li>
                     <li>Nhấn "Xuất PDF" để tải về phiếu in khổ A4.</li>
+                    <li>Phiếu thu thường có thêm một trang phiếu trống (mẫu tiền mặt) ở phía dưới.</li>
                     <li>Phiếu từ khoản vay đến hạn: mở trang &quot;Đến hạn 3 ngày&quot; (phiếu thu thường).</li>
                 </ul>
             </div>
@@ -394,7 +395,7 @@ const App: React.FC = () => {
                     style={{
                         transform: `scale(${scale})`,
                         transformOrigin: 'top center',
-                        height: `calc((297mm * ${customerData.type === 'CASH' ? 2 : 1} + ${customerData.type === 'CASH' ? 16 : 0}px) * ${scale})`,
+                        height: `calc((297mm * ${customerData.type === 'SETTLEMENT' ? 1 : 2} + ${customerData.type === 'SETTLEMENT' ? 0 : 16}px) * ${scale})`,
                         marginBottom: '20px'
                     }}
                  >
@@ -402,7 +403,8 @@ const App: React.FC = () => {
                      <SlipPreview 
                         id="print-area"
                         customer={customerData} 
-                        company={DEFAULT_COMPANY_INFO} 
+                        company={DEFAULT_COMPANY_INFO}
+                        appendBlankCashPage={customerData.type === 'STANDARD'}
                      />
                      </div>
                  </div>
