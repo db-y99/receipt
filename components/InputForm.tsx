@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { CustomerData, SlipType, PeriodBreakdown } from '../types';
-import { FileText, Calculator, RefreshCw, Plus, Trash2, Banknote } from 'lucide-react';
+import { FileText, Calculator, RefreshCw, Plus, Trash2, Banknote, ScrollText } from 'lucide-react';
 import { CustomerSearch } from './CustomerSearch';
 
 interface InputFormProps {
@@ -178,11 +178,14 @@ export const InputForm: React.FC<InputFormProps> = ({ data, onChange }) => {
     }
   }, [data.fullName, data.contractId, data.principal, data.interest, data.managementFee, data.overdueFee, data.settlementFee]);
 
+  const isCash = data.type === 'CASH';
+  const isRo = data.type === 'RO';
+
   return (
     <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
       
       {/* Type Selector */}
-      <div className="mb-6 flex p-1 bg-gray-100 rounded-lg">
+      <div className="mb-6 grid grid-cols-2 gap-1 p-1 bg-gray-100 rounded-lg">
         <button
           onClick={() => handleTypeChange('STANDARD')}
           className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-xs sm:text-sm font-medium rounded-md transition-all ${
@@ -206,6 +209,17 @@ export const InputForm: React.FC<InputFormProps> = ({ data, onChange }) => {
           Phiếu Tiền Mặt
         </button>
         <button
+          onClick={() => handleTypeChange('RO')}
+          className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-xs sm:text-sm font-medium rounded-md transition-all ${
+            data.type === 'RO' 
+              ? 'bg-white text-blue-600 shadow-sm' 
+              : 'text-gray-500 hover:text-gray-700'
+          }`}
+        >
+          <ScrollText className="w-4 h-4 shrink-0" />
+          Phiếu Thu RO
+        </button>
+        <button
           onClick={() => handleTypeChange('SETTLEMENT')}
           className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-xs sm:text-sm font-medium rounded-md transition-all ${
             data.type === 'SETTLEMENT' 
@@ -227,7 +241,7 @@ export const InputForm: React.FC<InputFormProps> = ({ data, onChange }) => {
             onFieldChange={handleChange}
           />
 
-           <div className="space-y-1">
+           {!isRo && <div className="space-y-1">
             <label className="text-xs font-medium text-gray-700">
                 Tổng tiền (Tự động tính)
             </label>
@@ -237,9 +251,9 @@ export const InputForm: React.FC<InputFormProps> = ({ data, onChange }) => {
               value={formatNumber(data.amount)}
               readOnly={true}
             />
-          </div>
+          </div>}
 
-          {data.type === 'CASH' && (
+          {(isCash || isRo) && (
           <div className="space-y-1">
             <label className="text-xs font-medium text-gray-700">Số phiếu</label>
             <input
@@ -253,7 +267,7 @@ export const InputForm: React.FC<InputFormProps> = ({ data, onChange }) => {
           )}
 
           <div className="space-y-1 md:col-span-2">
-            <label className="text-xs font-medium text-gray-700">{data.type === 'CASH' ? 'Nội dung' : 'Địa chỉ'}</label>
+            <label className="text-xs font-medium text-gray-700">{isCash || isRo ? 'Nội dung' : 'Địa chỉ'}</label>
             <textarea
               ref={addressTextareaRef}
               rows={2}
@@ -265,9 +279,9 @@ export const InputForm: React.FC<InputFormProps> = ({ data, onChange }) => {
           </div>
 
           {/* Breakdown Fields - For both STANDARD and SETTLEMENT */}
-          <div className="md:col-span-2 grid grid-cols-2 gap-4 bg-blue-50 p-4 rounded-lg border border-blue-100">
+          {!isRo && <div className="md:col-span-2 grid grid-cols-2 gap-4 bg-blue-50 p-4 rounded-lg border border-blue-100">
                 <div className="col-span-2 text-xs font-bold text-blue-800 uppercase tracking-wide">
-                    {data.type === 'SETTLEMENT' ? 'Chi tiết tất toán' : data.type === 'CASH' ? 'Chi tiết thu tiền mặt' : 'Chi tiết thanh toán'}
+                    {data.type === 'SETTLEMENT' ? 'Chi tiết tất toán' : isCash ? 'Chi tiết thu tiền mặt' : 'Chi tiết thanh toán'}
                 </div>
                 <div className="space-y-1">
                     <label className="text-xs font-medium text-gray-700">Gốc</label>
@@ -347,10 +361,10 @@ export const InputForm: React.FC<InputFormProps> = ({ data, onChange }) => {
                         onPaste={(e) => handleNumberPaste(e, 'remainingPrincipal')}
                     />
                 </div>
-            </div>
+            </div>}
 
           {/* Period Breakdown Section */}
-          <div className="md:col-span-2 bg-green-50 p-4 rounded-lg border border-green-100">
+          {!isRo && <div className="md:col-span-2 bg-green-50 p-4 rounded-lg border border-green-100">
             <div className="flex items-center justify-between mb-3">
               <div className="text-xs font-bold text-green-800 uppercase tracking-wide">
                 Chi tiết các kỳ thanh toán
@@ -463,9 +477,9 @@ export const InputForm: React.FC<InputFormProps> = ({ data, onChange }) => {
                 Chưa có kỳ nào. Nhấn "Thêm kỳ" để thêm chi tiết các kỳ thanh toán.
               </p>
             )}
-          </div>
+          </div>}
 
-          <div className="space-y-1 md:col-span-2">
+          {!isRo && <div className="space-y-1 md:col-span-2">
             <label className="text-xs font-medium text-gray-700">Thời hạn thanh toán</label>
             <input
               type="date"
@@ -473,9 +487,9 @@ export const InputForm: React.FC<InputFormProps> = ({ data, onChange }) => {
               value={data.deadline}
               onChange={(e) => handleChange('deadline', e.target.value)}
             />
-          </div>
+          </div>}
 
-          {data.type !== 'CASH' && (
+          {!isCash && !isRo && (
           <div className="space-y-1 md:col-span-2">
             <div className="flex items-center justify-between">
               <label className="text-xs font-medium text-gray-700">Nội dung chuyển khoản</label>

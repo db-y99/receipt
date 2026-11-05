@@ -1,4 +1,4 @@
-export type SlipType = 'STANDARD' | 'SETTLEMENT' | 'CASH';
+export type SlipType = 'STANDARD' | 'SETTLEMENT' | 'CASH' | 'RO';
 
 export interface PeriodBreakdown {
   periodNumber: number;    // Số kỳ (Kỳ 2, Kỳ 3, ...)

@@ -8,8 +8,6 @@ interface SlipPreviewProps {
   customer: CustomerData;
   company: CompanyInfo;
   id?: string;
-  /** Thêm trang phiếu trống (mẫu tiền mặt) sau phiếu thu thường. */
-  appendBlankCashPage?: boolean;
 }
 
 const formatDate = (dateString: string) => {
@@ -221,10 +219,10 @@ const CashSlipSheet: React.FC<CashSlipPanelProps> = ({ customer, company, blank 
   </div>
 );
 
-export const SlipPreview: React.FC<SlipPreviewProps> = ({ customer, company, id, appendBlankCashPage = false }) => {
+export const SlipPreview: React.FC<SlipPreviewProps> = ({ customer, company, id }) => {
   const qrRef = useRef<HTMLCanvasElement>(null);
 
-  const qrString = customer.type === 'CASH' ? '' : generateVietQRString({
+  const qrString = customer.type === 'CASH' || customer.type === 'RO' ? '' : generateVietQRString({
     accountNo: company.bankAccountNumber,
     amount: customer.amount > 0 ? customer.amount : undefined,
     content: customer.transferContent || undefined,
@@ -232,7 +230,7 @@ export const SlipPreview: React.FC<SlipPreviewProps> = ({ customer, company, id,
   });
 
   useEffect(() => {
-    if (customer.type === 'CASH' || !qrString || !qrRef.current) return;
+    if (customer.type === 'CASH' || customer.type === 'RO' || !qrString || !qrRef.current) return;
 
     const renderQR = (value: string) => {
       if (!qrRef.current || !(window as any).QRious) return;
@@ -280,20 +278,28 @@ export const SlipPreview: React.FC<SlipPreviewProps> = ({ customer, company, id,
 
   const isSettlement = customer.type === 'SETTLEMENT';
   const isCash = customer.type === 'CASH';
+  const isRo = customer.type === 'RO';
 
-  if (isCash) {
+  if (isRo) {
     return (
-      <div id={id} className="mx-auto print:shadow-none flex flex-col gap-4 print:gap-0" style={{ width: '210mm' }}>
-        <CashSlipSheet customer={customer} company={company} />
+      <div id={id} className="mx-auto print:shadow-none" style={{ width: '210mm' }}>
         <CashSlipSheet customer={customer} company={company} blank />
       </div>
     );
   }
 
-  const standardPage = (
+  if (isCash) {
+    return (
+      <div id={id} className="mx-auto print:shadow-none" style={{ width: '210mm' }}>
+        <CashSlipSheet customer={customer} company={company} />
+      </div>
+    );
+  }
+
+  return (
     <div
-      id={appendBlankCashPage ? undefined : id}
-      className={`bg-white text-black font-serif-print print:shadow-none relative flex flex-col justify-between ${appendBlankCashPage ? 'slip-page' : 'mx-auto'}`}
+      id={id}
+      className="bg-white text-black font-serif-print mx-auto print:shadow-none relative flex flex-col justify-between"
       style={{ width: '210mm', minHeight: '297mm', padding: '20mm' }}
     >
       <div className="absolute inset-0 pointer-events-none z-0 overflow-hidden">
@@ -470,15 +476,6 @@ export const SlipPreview: React.FC<SlipPreviewProps> = ({ customer, company, id,
           <p className="font-bold text-center text-sm leading-tight mt-1.5 break-words">Hotline: {company.hotline}</p>
         </div>
       </div>
-    </div>
-  );
-
-  if (!appendBlankCashPage) return standardPage;
-
-  return (
-    <div id={id} className="mx-auto print:shadow-none flex flex-col gap-4 print:gap-0" style={{ width: '210mm' }}>
-      {standardPage}
-      <CashSlipSheet customer={customer} company={company} blank />
     </div>
   );
 };

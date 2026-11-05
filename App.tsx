@@ -29,6 +29,7 @@ const App: React.FC = () => {
   const getSlipPrefix = (type: CustomerData['type']) => {
     if (type === 'SETTLEMENT') return 'Phiếu tất toán';
     if (type === 'CASH') return 'Phiếu thu tiền mặt';
+    if (type === 'RO') return 'Phiếu thu RO';
     return 'Phiếu thu tiền';
   };
 
@@ -186,7 +187,7 @@ const App: React.FC = () => {
             compress: true
         });
 
-        // Phiếu thu thường và phiếu tiền mặt có trang phiếu trống (.slip-page). Phiếu tất toán là một trang.
+        // Mỗi loại phiếu là một trang A4. .slip-page dùng cho phiếu tiền mặt và phiếu thu RO.
         const pageEls = Array.from(input.querySelectorAll<HTMLElement>('.slip-page'));
         const targets = pageEls.length > 0 ? pageEls : [input];
 
@@ -371,11 +372,11 @@ const App: React.FC = () => {
             <div className="bg-white border border-blue-100 p-4 rounded-lg text-sm text-blue-800 shadow-sm">
                 <p className="font-semibold mb-1">Hướng dẫn:</p>
                 <ul className="list-disc pl-4 space-y-1 opacity-90">
-                    <li>Chọn loại phiếu (Thường / Tất toán).</li>
+                    <li>Chọn loại phiếu (Thường / Tiền mặt / RO / Tất toán).</li>
                     <li>Nhập đầy đủ thông tin khách hàng.</li>
                     <li>Mã QR tự động cập nhật số tiền và nội dung.</li>
                     <li>Nhấn "Xuất PDF" để tải về phiếu in khổ A4.</li>
-                    <li>Phiếu thu thường có thêm một trang phiếu trống (mẫu tiền mặt) ở phía dưới.</li>
+                    <li>Phiếu thu RO là phiếu tiền mặt để trống ngày và số tiền, dùng để ghi tay.</li>
                     <li>Phiếu từ khoản vay đến hạn: mở trang &quot;Đến hạn 3 ngày&quot; (phiếu thu thường).</li>
                 </ul>
             </div>
@@ -395,7 +396,7 @@ const App: React.FC = () => {
                     style={{
                         transform: `scale(${scale})`,
                         transformOrigin: 'top center',
-                        height: `calc((297mm * ${customerData.type === 'SETTLEMENT' ? 1 : 2} + ${customerData.type === 'SETTLEMENT' ? 0 : 16}px) * ${scale})`,
+                        height: `calc(297mm * ${scale})`,
                         marginBottom: '20px'
                     }}
                  >
@@ -404,7 +405,6 @@ const App: React.FC = () => {
                         id="print-area"
                         customer={customerData} 
                         company={DEFAULT_COMPANY_INFO}
-                        appendBlankCashPage={customerData.type === 'STANDARD'}
                      />
                      </div>
                  </div>
