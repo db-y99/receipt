@@ -175,20 +175,6 @@ const App: React.FC = () => {
         const EXPORT_SCALE = 3;
         const JPEG_QUALITY = 0.95;
 
-        // Capture print-area at true layout size (ignore preview scale wrapper)
-        const canvas = await html2canvas(input, {
-            scale: EXPORT_SCALE,
-            useCORS: true,
-            logging: false,
-            backgroundColor: '#ffffff',
-            width: input.scrollWidth,
-            height: input.scrollHeight,
-            scrollX: 0,
-            scrollY: -window.scrollY,
-        });
-
-        const imgData = canvas.toDataURL('image/jpeg', JPEG_QUALITY);
-        
         // A4 Dimensions in mm
         const pdfWidth = 210; 
         const pdfHeight = 297;
@@ -200,8 +186,26 @@ const App: React.FC = () => {
             compress: true
         });
 
-        // Use higher-quality interpolation (slower, but sharper)
-        pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight, undefined, 'SLOW');
+        // Phiếu tiền mặt có 2 trang (.slip-page). Các loại phiếu khác là một trang.
+        const pageEls = Array.from(input.querySelectorAll<HTMLElement>('.slip-page'));
+        const targets = pageEls.length > 0 ? pageEls : [input];
+
+        for (let i = 0; i < targets.length; i++) {
+            const pageEl = targets[i];
+            const pageCanvas = await html2canvas(pageEl, {
+                scale: EXPORT_SCALE,
+                useCORS: true,
+                logging: false,
+                backgroundColor: '#ffffff',
+                width: pageEl.scrollWidth,
+                height: pageEl.scrollHeight,
+                scrollX: 0,
+                scrollY: -window.scrollY,
+            });
+            const imgData = pageCanvas.toDataURL('image/jpeg', JPEG_QUALITY);
+            if (i > 0) pdf.addPage();
+            pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight, undefined, 'SLOW');
+        }
 
         // Use custom filename if provided, otherwise use default (auto)
         const autoBase = buildAutoPdfBaseName(customerData) || getSlipPrefix(customerData.type);
@@ -386,11 +390,11 @@ const App: React.FC = () => {
                  {/* Scaled Wrapper for Preview */}
                  {/* This wrapper ensures the A4 slip fits within the container width without scrolling */}
                  <div 
-                    className="flex justify-center origin-top print:block print:transform-none"
+                    className="slip-preview-frame flex justify-center origin-top print:block print:transform-none"
                     style={{
                         transform: `scale(${scale})`,
                         transformOrigin: 'top center',
-                        height: `calc(297mm * ${scale})`,
+                        height: `calc((297mm * ${customerData.type === 'CASH' ? 2 : 1} + ${customerData.type === 'CASH' ? 16 : 0}px) * ${scale})`,
                         marginBottom: '20px'
                     }}
                  >

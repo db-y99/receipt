@@ -27,16 +27,29 @@ const formatNumber = (amount: number) => new Intl.NumberFormat('vi-VN').format(a
 interface CashSlipPanelProps {
   customer: CustomerData;
   company: CompanyInfo;
+  /** Phiếu để điền tay: ngày và số tiền trống, người ký là người lập phiếu. */
+  blank?: boolean;
 }
 
-const CashSlipPanel: React.FC<CashSlipPanelProps> = ({ customer, company }) => {
+const BLANK_CASH_DATE = 'Ngày .......... tháng .......... năm ..........';
+
+const BlankLine: React.FC<{ width: string }> = ({ width }) => (
+  <span
+    className="inline-block border-b border-dotted border-gray-800 align-baseline"
+    style={{ width, height: '1.05em' }}
+    aria-hidden="true"
+  />
+);
+
+const CashSlipPanel: React.FC<CashSlipPanelProps> = ({ customer, company, blank = false }) => {
   const hasBreakdown =
-    (customer.principal || 0) > 0 ||
-    (customer.interest || 0) > 0 ||
-    (customer.managementFee || 0) > 0 ||
-    (customer.settlementFee || 0) > 0 ||
-    (customer.overdueFee || 0) > 0 ||
-    (customer.periods && customer.periods.length > 0);
+    !blank &&
+    ((customer.principal || 0) > 0 ||
+      (customer.interest || 0) > 0 ||
+      (customer.managementFee || 0) > 0 ||
+      (customer.settlementFee || 0) > 0 ||
+      (customer.overdueFee || 0) > 0 ||
+      (customer.periods && customer.periods.length > 0));
 
   return (
     <div
@@ -85,7 +98,7 @@ const CashSlipPanel: React.FC<CashSlipPanelProps> = ({ customer, company }) => {
             <h2 className="font-bold text-2xl uppercase tracking-wide mb-1.5 leading-normal">PHIẾU THU TIỀN MẶT</h2>
             <div className="flex justify-between items-baseline italic font-medium text-sm leading-normal">
               <span>Số phiếu: {customer.receiptNumber || '...'}</span>
-              <span>{formatDate(customer.deadline)}</span>
+              <span>{blank ? BLANK_CASH_DATE : formatDate(customer.deadline)}</span>
             </div>
           </div>
 
@@ -106,7 +119,11 @@ const CashSlipPanel: React.FC<CashSlipPanelProps> = ({ customer, company }) => {
             <div className="pt-1 space-y-1">
               <div className="flex flex-nowrap items-baseline gap-1.5 leading-snug">
                 <span className="font-bold shrink-0 whitespace-nowrap">Tổng tiền thanh toán:</span>
-                <span className="font-bold text-xl text-red-700 whitespace-nowrap">{formatMoney(customer.amount)}</span>
+                {blank ? (
+                  <BlankLine width="160px" />
+                ) : (
+                  <span className="font-bold text-xl text-red-700 whitespace-nowrap">{formatMoney(customer.amount)}</span>
+                )}
               </div>
 
               {hasBreakdown && (
@@ -146,7 +163,7 @@ const CashSlipPanel: React.FC<CashSlipPanelProps> = ({ customer, company }) => {
 
         <div className="grid grid-cols-2 gap-12 text-center text-base mt-2">
           <div className="flex flex-col items-center">
-            <p className="font-bold leading-normal">Thủ quỹ</p>
+            <p className="font-bold leading-normal">{blank ? 'Người lập phiếu' : 'Thủ quỹ'}</p>
             <p className="text-sm italic text-gray-700 leading-normal mt-1 mb-2">(Ký, ghi rõ họ tên)</p>
             <div className="w-full h-12" aria-hidden="true" />
           </div>
@@ -164,10 +181,15 @@ const CashSlipPanel: React.FC<CashSlipPanelProps> = ({ customer, company }) => {
       >
         <p>
           <span className="font-bold">Đã nhận đủ số tiền (bằng số):</span>{' '}
-          <span className="font-semibold">{formatMoney(customer.amount, 'VNĐ')}</span>
+          {blank ? (
+            <BlankLine width="140px" />
+          ) : (
+            <span className="font-semibold">{formatMoney(customer.amount, 'VNĐ')}</span>
+          )}
         </p>
         <p className="mt-1 italic break-words">
-          <span className="font-bold not-italic">(Bằng chữ):</span> {amountToVietnameseWords(customer.amount)}
+          <span className="font-bold not-italic">(Bằng chữ):</span>{' '}
+          {blank ? <BlankLine width="280px" /> : amountToVietnameseWords(customer.amount)}
         </p>
       </div>
     </div>
@@ -235,15 +257,21 @@ export const SlipPreview: React.FC<SlipPreviewProps> = ({ customer, company, id 
   const isCash = customer.type === 'CASH';
 
   if (isCash) {
-    return (
+    const renderSheet = (blank: boolean) => (
       <div
-        id={id}
-        className="bg-white text-black font-serif-print mx-auto print:shadow-none relative flex flex-col"
+        className={`slip-page bg-white text-black font-serif-print relative flex flex-col ${blank ? 'slip-page-break' : ''}`}
         style={{ width: '210mm', height: '297mm' }}
       >
-        <CashSlipPanel customer={customer} company={company} />
+        <CashSlipPanel customer={customer} company={company} blank={blank} />
         <div className="h-0 shrink-0 border-t border-dashed border-gray-400" aria-hidden="true" />
-        <CashSlipPanel customer={customer} company={company} />
+        <CashSlipPanel customer={customer} company={company} blank={blank} />
+      </div>
+    );
+
+    return (
+      <div id={id} className="mx-auto print:shadow-none flex flex-col gap-4 print:gap-0" style={{ width: '210mm' }}>
+        {renderSheet(false)}
+        {renderSheet(true)}
       </div>
     );
   }
